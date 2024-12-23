@@ -1,7 +1,7 @@
 //在Block中输入任意的字符实现一些功能
 
 import React from 'react'
-import { Text, Heading1, Heading2, Heading3 } from 'lucide-react'
+import { Text, Heading1, Heading2, Heading3, Image as ImageIcon } from 'lucide-react'
 
 interface SlashCommandMenuProps {
     position: { x: number; y: number }
@@ -14,6 +14,7 @@ const commands = [
     { type: 'heading-1', icon: Heading1, label: 'Heading 1' },
     { type: 'heading-2', icon: Heading2, label: 'Heading 2' },
     { type: 'heading-3', icon: Heading3, label: 'Heading 3' },
+    { type: 'image', icon: ImageIcon, label: 'Image' },
 ]
 
 export const SlashCommandMenu: React.FC<SlashCommandMenuProps> = ({ position, onSelect, onClose }) => {

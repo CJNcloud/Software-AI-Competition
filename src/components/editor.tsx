@@ -10,6 +10,7 @@ import { Plus } from 'lucide-react'
 import * as Y from 'yjs';
 import { SimpleStompProvider } from '@/lib/simple-stomp-provider'
 import Selecto from "react-selecto";
+import { ImageBlock } from './ImageBlock'
 
 interface BlockData {
     id: string;
@@ -119,7 +120,7 @@ export function Editor({ pageId }: EditorProps) {
     //处理内容content改变的函数
     const handleBlockChange = useCallback((id: string, content: string) => {
         const blocksArray = ydoc.getArray<string>('blocksArray');
-        console.log('handleBlockChange '+blocksArray.length)
+        console.log('handleBlockChange '+content)
         const blocksData:Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
         
         // 将所有操作包装在一个事务中
@@ -399,27 +400,42 @@ export function Editor({ pageId }: EditorProps) {
                     <>
                         <div className="relative">
                             {blocks.map((block, index) => (
-                                <Block
-                                    key={block.id}
-                                    {...block}
-                                    onChange={handleBlockChange}
-                                    onFocus={handleBlockFocus}
-                                    onBlur={handleBlockBlur}
-                                    onKeyDown={handleKeyDown}
-                                    onDelete={deleteBlock}
-                                    onToggleType={toggleBlockType}
-                                    index={index}
-                                    moveBlock={moveBlock}
-                                    awareness={awareness}
-                                    userId={userId.current}
-                                    selectedBlockId={selectedBlockId}
-                                    isSelected={selectedBlocks.has(block.id)}
-                                    onSelect={handleBlockSelect}
-                                    placeholder={index === 0 ? "输入标题..." : "按下 / 开始创作"}
-                                />
+                                block.type === 'image' ? (
+                                    <ImageBlock
+                                        key={block.id}
+                                        {...block}
+                                        onChange={handleBlockChange}
+                                        onFocus={handleBlockFocus}
+                                        onBlur={handleBlockBlur}
+                                        onDelete={deleteBlock}
+                                        index={index}
+                                        moveBlock={moveBlock}
+                                        isSelected={selectedBlocks.has(block.id)}
+                                        onSelect={handleBlockSelect}
+                                        ydoc={ydoc}
+                                    />
+                                ) : (
+                                    <Block
+                                        key={block.id}
+                                        {...block}
+                                        onChange={handleBlockChange}
+                                        onFocus={handleBlockFocus}
+                                        onBlur={handleBlockBlur}
+                                        onKeyDown={handleKeyDown}
+                                        onDelete={deleteBlock}
+                                        onToggleType={toggleBlockType}
+                                        index={index}
+                                        moveBlock={moveBlock}
+                                        awareness={awareness}
+                                        userId={userId.current}
+                                        selectedBlockId={selectedBlockId}
+                                        isSelected={selectedBlocks.has(block.id)}
+                                        onSelect={handleBlockSelect}
+                                        placeholder={index === 0 ? "输入标题..." : "按下 / 开始创作"}
+                                    />
+                                )
                             ))}
                         </div>
-
                         <Selecto
                             dragContainer={".relative"}
                             selectableTargets={["[data-block-id]"]}
