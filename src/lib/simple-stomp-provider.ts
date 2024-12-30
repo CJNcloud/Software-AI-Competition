@@ -84,10 +84,10 @@ export class SimpleStompProvider {
     }
 
     // 触发事件
-    private emit(eventName: string, ...args: any[]) {
+    private emit(eventName: string, arg: boolean) {
         const handlers = this.eventHandlers.get(eventName);
         if (handlers) {
-            handlers.forEach(handler => handler(...args));
+            handlers.forEach(handler => handler(arg));
         }
     }
 

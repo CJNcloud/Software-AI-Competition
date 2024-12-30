@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { PlusCircle, Search, ChevronDown, ChevronRight, File, Folder, Settings, Trash, Link, MessageCircle } from 'lucide-react'
+import { PlusCircle, Search, ChevronDown, ChevronRight, File, Folder, Settings, Trash, Link, MessageCircle, User } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -14,11 +14,12 @@ interface SidebarProps {
     onConnectClick: () => void;
     currentPageId: string | null;
     onWeChatLogin: () => void;
+    onGuestLogin: () => void;
     isLoggedIn: boolean;
     onLogout: () => void;
 }
 
-export function Sidebar({ onNewPage, onConnectClick, currentPageId, onWeChatLogin, isLoggedIn, onLogout }: SidebarProps) {
+export function Sidebar({ onNewPage, onConnectClick, currentPageId, onWeChatLogin, onGuestLogin, isLoggedIn, onLogout }: SidebarProps) {
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
 
     const toggleFolder = (folderId: string) => {
@@ -111,12 +112,21 @@ export function Sidebar({ onNewPage, onConnectClick, currentPageId, onWeChatLogi
                         </Button>
                     </div>
                 ) : (
-                    <Button
-                        className="w-full justify-start"
-                        onClick={onWeChatLogin}
-                    >
-                        <MessageCircle className="mr-2 h-4 w-4" /> 微信登录
-                    </Button>
+                    <div className="space-y-2">
+                        <Button
+                            className="w-full justify-start"
+                            onClick={onWeChatLogin}
+                        >
+                            <MessageCircle className="mr-2 h-4 w-4" /> 微信登录
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="w-full justify-start"
+                            onClick={onGuestLogin}
+                        >
+                            <User className="mr-2 h-4 w-4" /> 游客登录
+                        </Button>
+                    </div>
                 )}
                 <div className="relative mt-4">
                     <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />

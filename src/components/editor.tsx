@@ -388,6 +388,23 @@ export function Editor({ pageId }: EditorProps) {
         }
     }, []);
 
+    // // 添加一个函数来检查用户权限
+    // const checkUserPermissions = () => {
+    //     const userType = localStorage.getItem('userType');
+    //     const isGuest = userType === 'guest';
+        
+    //     // 可以根据需要限制游客的某些功能
+    //     return {
+    //         canEdit: true, // 所有用户都可以编辑
+    //         canShare: !isGuest, // 只有非游客用户可以分享
+    //         canExport: !isGuest, // 只有非游客用户可以导出
+    //         // ... 其他权限
+    //     };
+    // };
+
+    // // 在需要的地方使用权限检查
+    // const permissions = checkUserPermissions();
+
     return (
         <DndProvider backend={HTML5Backend} options={{ enableMouseEvents: true }}>
             <div className="w-full max-w-4xl mx-auto p-4 bg-white min-h-screen relative">

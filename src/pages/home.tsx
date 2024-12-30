@@ -2,6 +2,7 @@ import { Sidebar } from "@/components/sidebar"
 import { Editor } from "@/components/editor"
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import { v4 as uuidv4 } from 'uuid';
 
 export default function Home() {
     const [pageId, setPageId] = useState<string | null>(null);
@@ -12,7 +13,8 @@ export default function Home() {
     useEffect(() => {
         // 从 localStorage 获取登录状态
         const savedOpenId = localStorage.getItem('userOpenId');
-        if (savedOpenId) {
+        const userType = localStorage.getItem('userType');
+        if (savedOpenId && userType) {
             setUserOpenId(savedOpenId);
         }
     }, []);
@@ -31,8 +33,16 @@ export default function Home() {
         navigate('/login');
     };
 
+    const handleGuestLogin = () => {
+        const guestId = `guest_${uuidv4()}`;
+        localStorage.setItem('userOpenId', guestId);
+        localStorage.setItem('userType', 'guest');
+        setUserOpenId(guestId);
+    };
+
     const handleLogout = () => {
         localStorage.removeItem('userOpenId');
+        localStorage.removeItem('userType');
         setUserOpenId(null);
     };
 
@@ -43,6 +53,7 @@ export default function Home() {
                 onConnectClick={() => setShowConnectModal(true)}
                 currentPageId={pageId}
                 onWeChatLogin={handleWeChatLogin}
+                onGuestLogin={handleGuestLogin}
                 isLoggedIn={!!userOpenId}
                 onLogout={handleLogout}
             />

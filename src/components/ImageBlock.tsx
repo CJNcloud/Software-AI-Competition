@@ -26,8 +26,6 @@ export const ImageBlock: React.FC<ImageBlockProps> = ({
     id,
     content,
     onChange,
-    onFocus,
-    onBlur,
     onDelete,
     index,
     moveBlock,
@@ -110,7 +108,7 @@ export const ImageBlock: React.FC<ImageBlockProps> = ({
         collect: (monitor) => ({
             isOver: monitor.isOver(),
         }),
-        hover: (item: any, monitor) => {
+        hover: (item: any) => {
             if (!ref.current) return;
             const dragIndex = item.index;
             const hoverIndex = index;

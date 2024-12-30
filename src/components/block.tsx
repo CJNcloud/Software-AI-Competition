@@ -37,7 +37,7 @@ export const Block: React.FC<BlockProps> = ({
                                                 onBlur,
                                                 onKeyDown,
                                                 onDelete,
-                                                onToggleType,
+                                                // onToggleType,
                                                 index,
                                                 moveBlock,
                                                 awareness,
@@ -56,7 +56,7 @@ export const Block: React.FC<BlockProps> = ({
 
         const handleAwarenessChange = () => {
             const states = awareness.getStates();
-            states.forEach((state: any, clientId: string) => {
+            states.forEach((state: any) => {
                 if (state.user.id !== userId && state.user.cursor?.blockId === id) {
                     // 如果有其他用户的光标在这个块中，可以显示他们的光标位置
                     // 这里可以添加显示其他用户光标的逻辑
