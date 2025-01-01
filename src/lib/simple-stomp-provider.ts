@@ -26,7 +26,7 @@ export class SimpleStompProvider {
             console.log(`STOMP Connected to page ${this.pageId}`);
 
             this.stompClient.subscribe(`/topic/page/${this.pageId}`, message => {
-                console.log(`Received update for page ${this.pageId}:`, message);
+                // console.log(`Received update for page ${this.pageId}:`, message);
                 const data = JSON.parse(message.body);
                 if (data.clientId !== this.doc.clientID) {
                     const update = new Uint8Array(data.update);
@@ -45,7 +45,7 @@ export class SimpleStompProvider {
 
         this.doc.on('update', (update: Uint8Array, origin: any) => {
             if (this.stompClient.connected && origin !== 'remote') {
-                console.log('发送了某更新'+update);
+                // console.log('发送了某更新'+update);
                 this.stompClient.publish({
                     destination: `/app/page/${this.pageId}`,
                     body: JSON.stringify({

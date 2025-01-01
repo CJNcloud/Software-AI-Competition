@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Search } from 'lucide-react'
 import { Input } from "@/components/ui/input"
-
+import myImage from '@/images/logo.png';
 export function Navbar() {
     const userType = localStorage.getItem('userType');
     const userOpenId = localStorage.getItem('userOpenId');
@@ -13,7 +13,7 @@ export function Navbar() {
                 <Button variant="ghost" className="text-xl font-bold flex items-center gap-3">
                     Ideai
                     <img
-                        src="src\images\logo.png"
+                        src={myImage}
                         alt="Ideai Logo"
                         className="w-12 h-12 object-contain"
                     />

@@ -11,7 +11,7 @@ import * as Y from 'yjs';
 import { SimpleStompProvider } from '@/lib/simple-stomp-provider'
 import Selecto from "react-selecto";
 import { ImageBlock } from './ImageBlock'
-
+import { AIPicture, AIsummary } from './AI'
 interface BlockData {
     id: string;
     type: string;
@@ -40,32 +40,19 @@ export function Editor({ pageId }: EditorProps) {
     const [awareness, setAwareness] = useState<any>(null);
     const userId = useRef(uuidv4()); // 为每个用户生成唯一ID
     const [selectedBlocks, setSelectedBlocks] = useState<Set<string>>(new Set());
-
-    // 添加一个处理光标更新的函数
-    // const handleCursorChange = useCallback((blockId: string, offset: number) => {
-    //     if (awareness) {
-    //         awareness.setLocalState({
-    //             user: {
-    //                 id: userId.current,
-    //                 cursor: {
-    //                     blockId,
-    //                     offset
-    //                 }
-    //             }
-    //         });
-    //     }
-    // }, [awareness]);
-
+    const blocksRef = useRef(blocks);
     useEffect(() => {
-        setIsLoading(true);
-        const blocksArray = ydoc.getArray<string>('blocksArray');
-        const blocksData: Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
+        blocksRef.current = blocks;
+    }, [blocks]);
+    useEffect(() => {
         const provider = new SimpleStompProvider(
             'ws://forfries.com:8887/ws',
             pageId,
             ydoc
         );
-    
+        setIsLoading(true);
+        const blocksArray = ydoc.getArray<string>('blocksArray');
+        const blocksData: Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
         let initialized = false;
 
         provider.on('sync', (isSynced: boolean) => {
@@ -86,22 +73,23 @@ export function Editor({ pageId }: EditorProps) {
                             });
                         }
                     });
+                    console.log(newBlocks);
                     setBlocks(newBlocks);
                 });
 
-                // 如果已经有内容，直接触发一次更新
-                const existingBlocks: BlockData[] = [];
-                blocksArray.forEach((blockId) => {
-                    const blockData = blocksData.get(blockId);
-                    if (blockData) {
-                        existingBlocks.push({
-                            id: blockData.get('id')!,
-                            type: blockData.get('type')!,
-                            content: blockData.get('content')!,
-                        });
-                    }
-                });
-                setBlocks(existingBlocks);
+                // // 如果已经有内容，直接触发一次更新
+                // const existingBlocks: BlockData[] = [];
+                // blocksArray.forEach((blockId) => {
+                //     const blockData = blocksData.get(blockId);
+                //     if (blockData) {
+                //         existingBlocks.push({
+                //             id: blockData.get('id')!,
+                //             type: blockData.get('type')!,
+                //             content: blockData.get('content')!,
+                //         });
+                //     }
+                // });
+                // setBlocks(existingBlocks);
                 setIsLoading(false);
             }
         });
@@ -111,23 +99,17 @@ export function Editor({ pageId }: EditorProps) {
             ydoc.destroy();
         };
     }, [pageId]);
-    // useEffect(() => {
-    //     localStorage.setItem('notionLikeBlocks', JSON.stringify(blocks));
-    // }, [blocks]);
-    // useEffect(() => {
-    //     console.log("Updated blocks:", blocks);  // 每 blocks 更新时都会打印
-    // }, [blocks]);
-    //处理内容content改变的函数
-    const handleBlockChange = useCallback((id: string, content: string) => {
-        const blocksArray = ydoc.getArray<string>('blocksArray');
-        console.log('handleBlockChange '+content)
-        const blocksData:Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
-        
+    const handleBlockChange = useCallback((id: string, content: string) => { 
         // 将所有操作包装在一个事务中
         ydoc.transact(() => {
+            const blocksArray = ydoc.getArray<string>('blocksArray');
+            console.log('handleBlockChange '+content)
+            const blocksData:Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
+            console.log("之前的="+blocksData);
             blocksArray.forEach((blockMap,index) => {
                 if (blocksData.get(blockMap)!.get('id') === id) {
                     // 1. 更新内容
+                    console.log('yes');
                     blocksData.get(blockMap)!.set('content', content);
                     // 2. 删除并重新插入以触发更新
                     blocksArray.delete(index,1);
@@ -217,25 +199,14 @@ export function Editor({ pageId }: EditorProps) {
             deleteBlock(blockId);
         }
     }, []);
-    const addBlock = useCallback((type: string) => {
-        // const newBlock: BlockData = { id: uuidv4(), type, content };
-        // setBlocks(blocks => {
-        //     console.log('Previous blocks:', blocks);  // 打印当前的 blocks 数组
-        //     return [...blocks, newBlock];
-        // });
+    const addBlock = useCallback((type: string,content: string='',id : string  =uuidv4()) => {
         setShowSlashMenu(false);
-        // console.log('Updated blocks:', blocks);  // 这会打印当前的 blocks，但因为 setBlocks 是异步的，所以这里的值不会被更新
         const blocksArray = ydoc.getArray<string>('blocksArray');
         const blocksData:Y.Map<Y.Map<string>>=ydoc.getMap<Y.Map<string>>('blocksData');
         const newBlockMap:Y.Map<string> = new Y.Map<string>();
-        const id:string = uuidv4()
-        // console.log(id);
         newBlockMap.set('id', id);
-        newBlockMap.set('content', '');
+        newBlockMap.set('content', content);
         newBlockMap.set('type', type);
-        // console.log(newBlockMap.get('id'));
-        // console.log(newBlockMap.get('content'));
-        // console.log(newBlockMap.get('type'));
         blocksData.set(id, newBlockMap);
         blocksArray.push([id]);
         
@@ -387,24 +358,41 @@ export function Editor({ pageId }: EditorProps) {
             setSelectedBlocks(new Set(selected));
         }
     }, []);
-
-    // // 添加一个函数来检查用户权限
-    // const checkUserPermissions = () => {
-    //     const userType = localStorage.getItem('userType');
-    //     const isGuest = userType === 'guest';
+    const handleAISummary = useCallback(async (type: string) => {
+        // 首先添加一个加载提示的 block
+        const loadingBlockId = uuidv4();
+        addBlock(type, "正在生成中，请稍后...",loadingBlockId);
         
-    //     // 可以根据需要限制游客的某些功能
-    //     return {
-    //         canEdit: true, // 所有用户都可以编辑
-    //         canShare: !isGuest, // 只有非游客用户可以分享
-    //         canExport: !isGuest, // 只有非游客用户可以导出
-    //         // ... 其他权限
-    //     };
-    // };
-
-    // // 在需要的地方使用权限检查
-    // const permissions = checkUserPermissions();
-
+        try {
+            const response = await AIsummary(blocks);
+            // 获取到响应后，删除加载提示并添加新内容
+            deleteBlock(loadingBlockId);
+            addBlock(type, response);
+        } catch (error) {
+            // 如果出错，更新加载提示为错误信息
+            deleteBlock(loadingBlockId);
+            addBlock(type, "生成失败，请重试");
+            console.error('AI Summary failed:', error);
+        }
+    }, [blocks, addBlock, deleteBlock]);
+    const handleAIPicture = useCallback(async (type: string) => {
+        // 首先添加一个加载提示的 block
+        const loadingBlockId = uuidv4();
+        addBlock('paragraph', "正在生成中，请稍后...",loadingBlockId);
+        try {
+            const response = await AIPicture(blocks);
+            // 获取到响应后，删除加载提示并添加新内容
+            console.log(response);
+            deleteBlock(loadingBlockId);
+            addBlock(type, response);
+        } catch (error) {
+            // 如果出错，更新加载提示为错误信息
+            deleteBlock(loadingBlockId);
+            addBlock(type, "生成失败，请重试");
+            console.error('AI Summary failed:', error);
+        }
+    }, [blocks, addBlock, deleteBlock]);
+    
     return (
         <DndProvider backend={HTML5Backend} options={{ enableMouseEvents: true }}>
             <div className="w-full max-w-4xl mx-auto p-4 bg-white min-h-screen relative">
@@ -424,7 +412,7 @@ export function Editor({ pageId }: EditorProps) {
                                         onChange={handleBlockChange}
                                         onFocus={handleBlockFocus}
                                         onBlur={handleBlockBlur}
-                                        onDelete={deleteBlock}
+                                        onDelete={deleteBlock}  
                                         index={index}
                                         moveBlock={moveBlock}
                                         isSelected={selectedBlocks.has(block.id)}
@@ -480,6 +468,24 @@ export function Editor({ pageId }: EditorProps) {
                         >
                             <Plus className="h-4 w-4 mr-2" />
                             Add a block
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="mt-4 text-gray-500 hover:text-gray-700"
+                            onClick={() => handleAISummary('paragraph')}
+                        >
+                            <Plus className="h-4 w-4 mr-2" />
+                            AI Summary
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="mt-4 text-gray-500 hover:text-gray-700"
+                            onClick={() => handleAIPicture('image')}
+                        >
+                            <Plus className="h-4 w-4 mr-2" />
+                            AI Picture
                         </Button>
                         {selectedBlockId && (
                             <FloatingToolbar

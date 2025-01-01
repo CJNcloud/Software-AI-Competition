@@ -20,13 +20,25 @@ export default function Home() {
     }, []);
 
     const handleNewPage = () => {
-        const newPageId = Math.floor(100000 + Math.random() * 900000).toString();
-        setPageId(newPageId);
+        // 第一步：设置 pageId 为 null，这会导致当前的 Editor 组件被卸载
+        setPageId(null);
+        
+        // 第二步：在下一个事件循环中设置新的 pageId
+        setTimeout(() => {
+            const newPageId = Math.floor(100000 + Math.random() * 900000).toString();
+            setPageId(newPageId);
+        }, 0);
     };
 
     const handleConnect = (id: string) => {
-        setPageId(id);
-        setShowConnectModal(false);
+        // 第一步：设置 pageId 为 null，清空当前页面
+        setPageId(null);
+        
+        // 第二步：在下一个事件循环中设置新的 pageId
+        setTimeout(() => {
+            setPageId(id);
+            setShowConnectModal(false);
+        }, 0);
     };
 
     const handleWeChatLogin = () => {
@@ -68,7 +80,7 @@ export default function Home() {
                 ) : (
                     <div className="flex h-full items-center justify-center">
                         <div className="text-center">
-                            <h2 className="text-2xl font-semibold mb-2">Welcome to Notion Clone</h2>
+                            <h2 className="text-2xl font-semibold mb-2">Welcome to Ideai</h2>
                             <p className="text-muted-foreground mb-4">Create a new page or connect to an existing one to get started</p>
                         </div>
                     </div>
