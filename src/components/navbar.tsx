@@ -2,24 +2,34 @@ import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Search } from 'lucide-react'
 import { Input } from "@/components/ui/input"
-import myImage from '@/images/logo.png';
-export function Navbar() {
-    const userType = localStorage.getItem('userType');
-    const userOpenId = localStorage.getItem('userOpenId');
+import LogoImage from '@/images/logo.png';
+import ProgramImage from '@/images/program.png';
+
+interface NavbarProps {
+    userType: string | null;
+    userOpenId: string | null;
+}
+
+export function Navbar({ userType, userOpenId }: NavbarProps) {
+    const isLoggedIn = !!(userType && userOpenId);
 
     return (
         <nav className="border-b">
             <div className="flex h-16 items-center px-4">
                 <Button variant="ghost" className="text-xl font-bold flex items-center gap-3">
-                    Ideai
                     <img
-                        src={myImage}
+                        src={ProgramImage}
+                        alt="Ideai Logo"
+                        className="w-12 h-12 object-contain"
+                    />
+                    <img
+                        src={LogoImage}
                         alt="Ideai Logo"
                         className="w-12 h-12 object-contain"
                     />
                 </Button>
                 <div className="ml-auto flex items-center space-x-4">
-                    {userOpenId && (
+                    {isLoggedIn && (
                         <span className="text-sm text-muted-foreground">
                             {userType === 'guest' ? '游客模式' : '微信用户'}
                         </span>

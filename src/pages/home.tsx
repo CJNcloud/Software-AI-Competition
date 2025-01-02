@@ -5,10 +5,22 @@ import { useNavigate } from "react-router-dom"
 import { v4 as uuidv4 } from 'uuid';
 
 export default function Home() {
-    const [pageId, setPageId] = useState<string | null>(null);
+    const [pageId, setPageId] = useState<string | null>(() => {
+        // 初始化时从 localStorage 读取 pageId
+        return localStorage.getItem('currentPageId');
+    });
     const [showConnectModal, setShowConnectModal] = useState(false);
     const [userOpenId, setUserOpenId] = useState<string | null>(null);
     const navigate = useNavigate();
+
+    // 当 pageId 改变时，保存到 localStorage
+    useEffect(() => {
+        if (pageId) {
+            localStorage.setItem('currentPageId', pageId);
+        } else {
+            localStorage.removeItem('currentPageId');
+        }
+    }, [pageId]);
 
     useEffect(() => {
         // 从 localStorage 获取登录状态
@@ -50,12 +62,21 @@ export default function Home() {
         localStorage.setItem('userOpenId', guestId);
         localStorage.setItem('userType', 'guest');
         setUserOpenId(guestId);
+        
+        // 触发自定义事件通知其他组件登录状态已更新
+        window.dispatchEvent(new Event('storage'));
     };
 
     const handleLogout = () => {
+        setUserOpenId(null);
         localStorage.removeItem('userOpenId');
         localStorage.removeItem('userType');
-        setUserOpenId(null);
+        // 退出登录时也清除当前页面ID
+        localStorage.removeItem('currentPageId');
+        setPageId(null);
+        
+        window.dispatchEvent(new Event('storage'));
+        navigate('/');
     };
 
     return (

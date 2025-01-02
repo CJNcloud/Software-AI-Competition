@@ -92,6 +92,17 @@ export function Sidebar({ onNewPage, onConnectClick, currentPageId, onWeChatLogi
         },
     ]
 
+    const handleLogout = () => {
+        // 清除所有登录相关的数据
+        localStorage.removeItem('userOpenId');
+        localStorage.removeItem('userType');
+        
+        // 调用传入的 onLogout 回调
+        if (onLogout) {
+            onLogout();
+        }
+    };
+
     return (
         <div className="w-64 h-full bg-background border-r flex flex-col">
             <div className="p-4 flex-shrink-0">
@@ -141,7 +152,7 @@ export function Sidebar({ onNewPage, onConnectClick, currentPageId, onWeChatLogi
                     <Button 
                         variant="outline" 
                         className="w-full justify-start"
-                        onClick={onLogout}
+                        onClick={handleLogout}
                     >
                         <Settings className="mr-2 h-4 w-4" /> 退出登录
                     </Button>

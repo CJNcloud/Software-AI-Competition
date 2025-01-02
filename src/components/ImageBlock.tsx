@@ -71,7 +71,7 @@ export const ImageBlock: React.FC<ImageBlockProps> = ({
                 const formData = new FormData();
                 formData.append('file', file);
                 
-                const response = await fetch('https://apifoxmock.com/m1/5580270-5258205-default/upload', {
+                const response = await fetch('http://forfries.com:8885/file/upload', {
                     method: 'POST',
                     body: formData,
                 });
