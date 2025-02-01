@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect,useRef} from 'react'
-import { Block } from './block'
+import { TextBlock } from './blocks/TextBlock'
 import { FloatingToolbar } from './toolbar'
 import { SlashCommandMenu } from './SlashCommandMenu'
 import { DndProvider } from 'react-dnd'
@@ -9,28 +9,21 @@ import { Button } from "@/components/ui/button"
 import { Plus } from 'lucide-react'
 import * as Y from 'yjs';
 import { SimpleStompProvider } from '@/lib/simple-stomp-provider'
-import Selecto from "react-selecto";
-import { ImageBlock } from './ImageBlock'
+import { ImageBlock } from './blocks/ImageBlock'
 import { AIPicture, AIsummary } from './AI'
+import { handleaddBlock, BlockChange, handledeleteBlock, handletoggleBlockType, handlemoveBlock,BlockSelect} from '@/controller/BlockConroller'
 interface BlockData {
     id: string;
     type: string;
     content: string;
 }
-//savedBlocks ? JSON.parse(savedBlocks) :
-// interface CursorState {
-//   blockId: string;
-//   offset: number;
-//   userId: string;
-// }
-
 interface EditorProps {
     pageId: string;
 }
 
 export function Editor({ pageId }: EditorProps) {
     const [blocks, setBlocks] = useState<BlockData[]>([]);
-    const [ydoc] = useState(() => new Y.Doc());
+    const [ydoc,setYdoc] = useState(() => new Y.Doc());
     const [isLoading, setIsLoading] = useState(true);
     const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
     const [showSlashMenu, setShowSlashMenu] = useState<boolean>(false);
@@ -44,6 +37,7 @@ export function Editor({ pageId }: EditorProps) {
     useEffect(() => {
         blocksRef.current = blocks;
     }, [blocks]);
+    
     useEffect(() => {
         const provider = new SimpleStompProvider(
             'ws://forfries.com:8887/ws',
@@ -54,12 +48,10 @@ export function Editor({ pageId }: EditorProps) {
         const blocksArray = ydoc.getArray<string>('blocksArray');
         const blocksData: Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
         let initialized = false;
-
         provider.on('sync', (isSynced: boolean) => {
             if (isSynced && !initialized) {
                 initialized = true;
                 console.log('同步完成，当前blocks数量：', blocksArray.length);
-
                 // 设置观察者来监听变化
                 blocksArray.observe(() => {
                     const newBlocks: BlockData[] = [];
@@ -73,27 +65,12 @@ export function Editor({ pageId }: EditorProps) {
                             });
                         }
                     });
-                    console.log(newBlocks);
+                    // console.log(newBlocks);
                     setBlocks(newBlocks);
                 });
-
-                // // 如果已经有内容，直接触发一次更新
-                // const existingBlocks: BlockData[] = [];
-                // blocksArray.forEach((blockId) => {
-                //     const blockData = blocksData.get(blockId);
-                //     if (blockData) {
-                //         existingBlocks.push({
-                //             id: blockData.get('id')!,
-                //             type: blockData.get('type')!,
-                //             content: blockData.get('content')!,
-                //         });
-                //     }
-                // });
-                // setBlocks(existingBlocks);
                 setIsLoading(false);
             }
         });
-
         return () => {
             provider.destroy();
             ydoc.destroy();
@@ -101,24 +78,8 @@ export function Editor({ pageId }: EditorProps) {
     }, [pageId]);
     const handleBlockChange = useCallback((id: string, content: string) => { 
         // 将所有操作包装在一个事务中
-        ydoc.transact(() => {
-            const blocksArray = ydoc.getArray<string>('blocksArray');
-            console.log('handleBlockChange '+content)
-            const blocksData:Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
-            console.log("之前的="+blocksData);
-            blocksArray.forEach((blockMap,index) => {
-                if (blocksData.get(blockMap)!.get('id') === id) {
-                    // 1. 更新内容
-                    console.log('yes');
-                    blocksData.get(blockMap)!.set('content', content);
-                    // 2. 删除并重新插入以触发更新
-                    blocksArray.delete(index,1);
-                    blocksArray.insert(index,[blockMap]);
-                }
-            });
-        });
+        BlockChange(id, content, ydoc);
     }, []);
-    
     const handleBlockFocus = useCallback((id: string) => {
         setSelectedBlockId(id);
         // 如果当前聚焦的块不是打开斜杠菜单的块，则关闭斜杠菜单
@@ -127,7 +88,6 @@ export function Editor({ pageId }: EditorProps) {
             setSlashMenuBlockId(null);
         }
     }, [slashMenuBlockId]);
-
     const handleBlockBlur = useCallback((id: string|null) => {
         if(id == null) {
             setSelectedBlockId(null);
@@ -143,7 +103,6 @@ export function Editor({ pageId }: EditorProps) {
             }
         }, 0);
     }, []);
-
     const handleKeyDown = useCallback((e: React.KeyboardEvent, blockId: string) => {
         if (e.key === '/') {
             // 获取当前块的内容
@@ -199,164 +158,50 @@ export function Editor({ pageId }: EditorProps) {
             deleteBlock(blockId);
         }
     }, []);
-    const addBlock = useCallback((type: string,content: string='',id : string  =uuidv4()) => {
-        setShowSlashMenu(false);
-        const blocksArray = ydoc.getArray<string>('blocksArray');
-        const blocksData:Y.Map<Y.Map<string>>=ydoc.getMap<Y.Map<string>>('blocksData');
-        const newBlockMap:Y.Map<string> = new Y.Map<string>();
-        newBlockMap.set('id', id);
-        newBlockMap.set('content', content);
-        newBlockMap.set('type', type);
-        blocksData.set(id, newBlockMap);
-        blocksArray.push([id]);
-        
-    }, []); 
-
     const handleSlashCommand = useCallback((type: string) => {
-        if (slashMenuBlockId) {
-            const blocksArray = ydoc.getArray<string>('blocksArray');
-            const blocksData:Y.Map<Y.Map<string>>=ydoc.getMap<Y.Map<string>>('blocksData');
-            
-            // 将所有操作包装在一个事务中
-            ydoc.transact(() => {
-                blocksArray.forEach((blockMap,index) => {
-                    if (blockMap === slashMenuBlockId) {
-                        // 1. 清除内容
-                        blocksData.get(blockMap)!.set('content', '');
-                        // 2. 设置新类型
-                        blocksData.get(blockMap)!.set('type', type);
-                        // 3. 删除并重新插入以触发更新
-                        blocksArray.delete(index,1);
-                        blocksArray.insert(index,[blockMap]);
-                    }
-                });
-            });
-            
-            // 设置焦点（这个操作不需要包含在事务中，因为它只影响本地UI）
-            setTimeout(() => {
-                setSelectedBlockId(slashMenuBlockId);
-            }, 0);
-        } else {
-            addBlock(type);
-        }
-        setShowSlashMenu(false);
-        setSlashMenuBlockId(null);
-    }, [slashMenuBlockId]);
-
-    const moveBlock = useCallback((dragIndex: number, hoverIndex: number) => {
-        const blocksArray = ydoc.getArray<string>('blocksArray');
-        
-        // 如果拖动的块在选中集合中
-        if (selectedBlocks.has(blocksArray.get(dragIndex))) {
-            // 获取所有选中块的索引
-            const selectedIndices = Array.from(blocksArray)
-                .map((blockId, index) => selectedBlocks.has(blockId) ? index : -1)
-                .filter(index => index !== -1)
-                .sort((a, b) => a - b);
-
-            ydoc.transact(() => {
-                // 计算目标位置的偏移量
-                // const offset = hoverIndex - dragIndex;
-                const targetIndex = Math.min(Math.max(0, hoverIndex), blocksArray.length - selectedIndices.length);
-
-                // 先删除所有选中的块，并保存它们的ID
-                const selectedBlockIds = selectedIndices.map(index => blocksArray.get(index));
-                // 从后往前删除，这样不会影响前面的索引
-                for (let i = selectedIndices.length - 1; i >= 0; i--) {
-                    blocksArray.delete(selectedIndices[i], 1);
-                }
-
-                // 在目标位置插入所有选中的块
-                blocksArray.insert(targetIndex, selectedBlockIds);
-            });
-        } else {
-            // 如果拖动的块不在选中集合中，保持原有的单块移动逻辑
-            const DragBlockID = blocksArray.get(dragIndex);
-            const HoverBlockID = blocksArray.get(hoverIndex);
-            
-            ydoc.transact(() => {
-                hoverIndex === blocksArray.length 
-                    ? blocksArray.push([DragBlockID.toString()]) 
-                    : blocksArray.insert(hoverIndex + 1, [DragBlockID.toString()]);
-                blocksArray.delete(hoverIndex, 1);
-                dragIndex === blocksArray.length 
-                    ? blocksArray.unshift([HoverBlockID.toString()]) 
-                    : blocksArray.insert(dragIndex + 1, [HoverBlockID.toString()]);
-                blocksArray.delete(dragIndex, 1);
-            });
-        }
-    }, [selectedBlocks]);
-    const deleteBlock = useCallback((id: string) => {
-        // console.log(id);
-        const blocksArray = ydoc.getArray<string>('blocksArray');
-        const blocksData:Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
-        blocksArray.forEach((blockMap, indexArray) => {
-        if (blockMap === id) {
-            console.log('delete success');
-            ydoc.transact(()=>{
-                blocksData.delete(blockMap);
-                blocksArray.delete(indexArray, 1);
-            })
-            
-        }
-        // console.log(blockMap);
-    });
-    }, []);
-
-    const toggleBlockType = useCallback((id: string, newType: string) => {
+    if (slashMenuBlockId) {
         const blocksArray = ydoc.getArray<string>('blocksArray');
         const blocksData:Y.Map<Y.Map<string>>=ydoc.getMap<Y.Map<string>>('blocksData');
         
         // 将所有操作包装在一个事务中
         ydoc.transact(() => {
             blocksArray.forEach((blockMap,index) => {
-                if (blockMap === id) {
-                    // 1. 更新类型
-                    blocksData.get(blockMap)!.set('type',newType);
-                    // 2. 删除并重新插入以触发更新
+                if (blockMap === slashMenuBlockId) {
+                    // 1. 清除内容
+                    blocksData.get(blockMap)!.set('content', '');
+                    // 2. 设置新类型
+                    blocksData.get(blockMap)!.set('type', type);
+                    // 3. 删除并重新插入以触发更新
                     blocksArray.delete(index,1);
                     blocksArray.insert(index,[blockMap]);
                 }
             });
         });
+        // 设置焦点（这个操作不需要包含在事务中，因为它只影响本地UI）
+        setTimeout(() => {
+            setSelectedBlockId(slashMenuBlockId);
+        }, 0);
+    } else {
+        addBlock(type);
+    }
+    setShowSlashMenu(false);
+    setSlashMenuBlockId(null);
+    }, [slashMenuBlockId]);
+    const addBlock = useCallback((type: string,content: string='',id : string  =uuidv4() ) => {
+        setYdoc(handleaddBlock( type, content, id, ydoc ));
+    }, []); 
+    const moveBlock = useCallback((dragIndex: number, hoverIndex: number) => {
+        setYdoc(handlemoveBlock(dragIndex, hoverIndex, ydoc, selectedBlocks));
+    }, [selectedBlocks]);
+    const deleteBlock = useCallback((id: string) => {
+        setYdoc(handledeleteBlock(id, ydoc));
     }, []);
-
+    const toggleBlockType = useCallback((id: string, newType: string) => {
+        setYdoc(handletoggleBlockType(id, newType,ydoc));
+    }, []);
     // 处理单击选择
     const handleBlockSelect = useCallback((blockId: string, e: MouseEvent) => {
-        if (e.ctrlKey || e.metaKey) {
-            // Ctrl/Cmd + 点击实现多选
-            setSelectedBlocks(prev => {
-                const newSelection = new Set(prev);
-                if (newSelection.has(blockId)) {
-                    newSelection.delete(blockId);
-                } else {
-                    newSelection.add(blockId);
-                }
-                return newSelection;
-            });
-        } else {
-            // 普通点击只选择当前块
-            setSelectedBlocks(new Set([blockId]));
-        }
-    }, []);
-
-    // 处理拖拽选择
-    const handleDragSelect = useCallback((e: any) => {
-        const selected = e.selected.map((el: HTMLElement) => 
-            el.getAttribute('data-block-id')
-        ).filter(Boolean);
-        
-        if (e.inputEvent.ctrlKey || e.inputEvent.metaKey) {
-            // Ctrl/Cmd + 拖拽实现添加选择
-            setSelectedBlocks(prev => {
-                const newSelection = new Set(prev);
-                selected.forEach((id:string) => newSelection.add(id));
-                return newSelection;
-            });
-        } else {
-            // 普通拖拽替换选择
-            setSelectedBlocks(new Set(selected));
-        }
+        setSelectedBlocks((selectedBlocks)=>BlockSelect(blockId, e, selectedBlocks));
     }, []);
     const handleAISummary = useCallback(async (type: string) => {
         // 首先添加一个加载提示的 block
@@ -420,7 +265,7 @@ export function Editor({ pageId }: EditorProps) {
                                         ydoc={ydoc}
                                     />
                                 ) : (
-                                    <Block
+                                    <TextBlock
                                         key={block.id}
                                         {...block}
                                         onChange={handleBlockChange}
@@ -428,7 +273,6 @@ export function Editor({ pageId }: EditorProps) {
                                         onBlur={handleBlockBlur}
                                         onKeyDown={handleKeyDown}
                                         onDelete={deleteBlock}
-                                        onToggleType={toggleBlockType}
                                         index={index}
                                         moveBlock={moveBlock}
                                         awareness={awareness}
@@ -441,25 +285,7 @@ export function Editor({ pageId }: EditorProps) {
                                 )
                             ))}
                         </div>
-                        <Selecto
-                            dragContainer={".relative"}
-                            selectableTargets={["[data-block-id]"]}
-                            hitRate={0}
-                            selectByClick={false}
-                            selectFromInside={false}
-                            toggleContinueSelect={["shift"]}
-                            ratio={0}
-                            onSelect={handleDragSelect}
-                            // style={{
-                            //     position: "fixed",
-                            //     zIndex: 999,
-                            // }}
-                            // selectBoxStyle={{
-                            //     background: "rgba(59, 130, 246, 0.1)",
-                            //     border: "1px solid rgba(59, 130, 246, 0.3)",
-                            // }}
-                        />
-
+                        
                         <Button
                             variant="ghost"
                             size="sm"

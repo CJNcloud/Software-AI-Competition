@@ -11,7 +11,6 @@ interface BlockProps {
     onBlur: (id: string|null) => void
     onKeyDown: (e: React.KeyboardEvent, id: string) => void
     onDelete: (id: string) => void
-    onToggleType: (id: string, type: string) => void
     index: number
     moveBlock: (DragIndex: number, HoverIndex:  number) => void
     awareness?: any;
@@ -28,7 +27,7 @@ interface DragItem {
     index:number
 }
 
-export const Block: React.FC<BlockProps> = ({
+export const TextBlock: React.FC<BlockProps> = ({
                                                 id,
                                                 type,
                                                 content,
@@ -71,7 +70,6 @@ export const Block: React.FC<BlockProps> = ({
     const saveSelection = () => {
         const selection = window.getSelection();
         if (!selection || !divRef.current) return;
-
         const range = selection.getRangeAt(0);
         if (divRef.current.contains(range.startContainer)) {
             lastSelectionRef.current = {
@@ -82,10 +80,8 @@ export const Block: React.FC<BlockProps> = ({
 
     const restoreSelection = useCallback(() => {
         if (!lastSelectionRef.current || !divRef.current) return;
-
         const selection = window.getSelection();
         if (!selection) return;
-
         const range = document.createRange();
         const textNode = divRef.current.firstChild || divRef.current;
         
@@ -102,7 +98,6 @@ export const Block: React.FC<BlockProps> = ({
     useEffect(() => {
         const div = divRef.current;
         if (!div) return;
-
         const handleInput = () => {
             saveSelection();
             if (awareness) {
@@ -121,19 +116,15 @@ export const Block: React.FC<BlockProps> = ({
                 }
             }
         };
-
         div.addEventListener('input', handleInput);
         return () => div.removeEventListener('input', handleInput);
-    }, [awareness, id, userId]);
-
+    }, [awareness, id, userId]);//处理不同用户输入
     useEffect(() => {
         if (content) {
-            restoreSelection();
+            restoreSelection();//每次输入都要处理一次返回光标,待优化
         }
     }, [content, restoreSelection]);
-
     const [isHovered, setIsHovered] = useState(false)
-
     const [{ isDragging }, drag, dragPreview] = useDrag({
         type: 'BLOCK',
         item: (): DragItem => ({
@@ -145,7 +136,6 @@ export const Block: React.FC<BlockProps> = ({
             isDragging: monitor.isDragging(),
         }),
     })
-
     const [{ isOver }, drop] = useDrop<DragItem, void, { isOver: boolean }>({
         accept: 'BLOCK',
         collect: (monitor) => ({
@@ -155,39 +145,30 @@ export const Block: React.FC<BlockProps> = ({
             if (!ref.current) {
                 return
             }
-    
             const dragIndex = item.index
             const hoverIndex = index
-    
             // Don't replace items with themselves
             if (dragIndex === hoverIndex) {
                 return
             }
-    
             // Determine rectangle on screen
             const hoverBoundingRect = ref.current.getBoundingClientRect()
-    
             // Get vertical middle
             const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2
-    
             // Determine mouse position
             const clientOffset = monitor.getClientOffset()
             if (!clientOffset) {
                 return
             }
-    
             // Get pixels to the top
             const hoverClientY = clientOffset.y - hoverBoundingRect.top
-    
             // Only perform the move when the mouse has crossed half of the items height
             if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) {
                 return
             }
-    
             if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) {
                 return
             }
-    
             // Don't perform any move until mouse is dropped (this ensures we don't update prematurely)
         },
         drop: (item) => {
