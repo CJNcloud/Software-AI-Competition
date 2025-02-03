@@ -1,27 +1,12 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
 import { Trash2, GripVertical, Image as ImageIcon } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import * as Y from 'yjs';
 import { Upload } from "antd";
 import type { UploadProps } from 'antd';
 import { message } from 'antd';
-
-interface ImageBlockProps {
-    id: string;
-    type: string;
-    content: string; // URL of the image
-    onChange: (id: string, content: string) => void;
-    onFocus: (id: string) => void;
-    onBlur: (id: string|null) => void;
-    onDelete: (id: string) => void;
-    index: number;
-    moveBlock: (dragIndex: number, hoverIndex: number) => void;
-    isSelected: boolean;
-    onSelect: (id: string, e: MouseEvent) => void;
-    ydoc: Y.Doc;
-}
-
+import { useDragBlock } from '@/hooks/useDragBlock';
+import { ImageBlockProps } from './BlockInterface/Block';
 export const ImageBlock: React.FC<ImageBlockProps> = ({
     id,
     content,
@@ -31,8 +16,9 @@ export const ImageBlock: React.FC<ImageBlockProps> = ({
     moveBlock,
     isSelected,
     onSelect,
+    awareness,
+    userId,
 }) => {
-    const ref = useRef<HTMLDivElement>(null);
     const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
 
     const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -94,34 +80,23 @@ export const ImageBlock: React.FC<ImageBlockProps> = ({
             }
         },
     };
-
-    const [{ isDragging }, drag, dragPreview] = useDrag({
-        type: 'BLOCK',
-        item: { id, type: 'BLOCK', index },
-        collect: (monitor) => ({
-            isDragging: monitor.isDragging(),
-        }),
-    });
-
-    const [{ isOver }, drop] = useDrop({
-        accept: 'BLOCK',
-        collect: (monitor) => ({
-            isOver: monitor.isOver(),
-        }),
-        hover: (item: any) => {
-            if (!ref.current) return;
-            const dragIndex = item.index;
-            const hoverIndex = index;
-            if (dragIndex === hoverIndex) return;
-            moveBlock(dragIndex, hoverIndex);
-            item.index = hoverIndex;
-        },
-    });
-
-    React.useEffect(() => {
-        dragPreview(drop(ref));
-    }, [dragPreview, drop]);
-
+     useEffect(() => {
+            if (!awareness) return;
+    
+            const handleAwarenessChange = () => {
+                const states = awareness.getStates();
+                states.forEach((state: any) => {
+                    if (state.user.id !== userId && state.user.cursor?.blockId === id) {
+                        // 如果有其他用户的光标在这个块中，可以显示他们的光标位置
+                        // 这里可以添加显示其他用户光标的逻辑
+                    }
+                });
+            };
+    
+            awareness.on('change', handleAwarenessChange);
+            return () => awareness.off('change', handleAwarenessChange);
+        }, [awareness, id, userId]);
+    const {setIsHovered , ref, drag, isDragging, isOver}= useDragBlock(id, index, moveBlock)
     return (
         <div
             ref={ref}

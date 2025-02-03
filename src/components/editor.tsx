@@ -23,7 +23,9 @@ interface EditorProps {
 
 export function Editor({ pageId }: EditorProps) {
     const [blocks, setBlocks] = useState<BlockData[]>([]);
-    const [ydoc,setYdoc] = useState(() => new Y.Doc());
+    const [ydoc, setYdoc] = useState(() => {
+        return new Y.Doc();
+      });
     const [isLoading, setIsLoading] = useState(true);
     const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
     const [showSlashMenu, setShowSlashMenu] = useState<boolean>(false);
@@ -37,7 +39,6 @@ export function Editor({ pageId }: EditorProps) {
     useEffect(() => {
         blocksRef.current = blocks;
     }, [blocks]);
-    
     useEffect(() => {
         const provider = new SimpleStompProvider(
             'ws://forfries.com:8887/ws',
@@ -188,21 +189,22 @@ export function Editor({ pageId }: EditorProps) {
     setSlashMenuBlockId(null);
     }, [slashMenuBlockId]);
     const addBlock = useCallback((type: string,content: string='',id : string  =uuidv4() ) => {
-        setYdoc(handleaddBlock( type, content, id, ydoc ));
+        console.log('addBlock',id);
+        setYdoc(handleaddBlock(type, content, id, ydoc) );
     }, []); 
     const moveBlock = useCallback((dragIndex: number, hoverIndex: number) => {
         setYdoc(handlemoveBlock(dragIndex, hoverIndex, ydoc, selectedBlocks));
     }, [selectedBlocks]);
     const deleteBlock = useCallback((id: string) => {
         setYdoc(handledeleteBlock(id, ydoc));
-    }, []);
+    }, [ydoc]);
     const toggleBlockType = useCallback((id: string, newType: string) => {
         setYdoc(handletoggleBlockType(id, newType,ydoc));
-    }, []);
+    }, [ydoc]);
     // 处理单击选择
     const handleBlockSelect = useCallback((blockId: string, e: MouseEvent) => {
         setSelectedBlocks((selectedBlocks)=>BlockSelect(blockId, e, selectedBlocks));
-    }, []);
+    }, [ydoc]);
     const handleAISummary = useCallback(async (type: string) => {
         // 首先添加一个加载提示的 block
         const loadingBlockId = uuidv4();
@@ -262,7 +264,7 @@ export function Editor({ pageId }: EditorProps) {
                                         moveBlock={moveBlock}
                                         isSelected={selectedBlocks.has(block.id)}
                                         onSelect={handleBlockSelect}
-                                        ydoc={ydoc}
+                                        userId={userId.current}
                                     />
                                 ) : (
                                     <TextBlock
@@ -277,7 +279,6 @@ export function Editor({ pageId }: EditorProps) {
                                         moveBlock={moveBlock}
                                         awareness={awareness}
                                         userId={userId.current}
-                                        selectedBlockId={selectedBlockId}
                                         isSelected={selectedBlocks.has(block.id)}
                                         onSelect={handleBlockSelect}
                                         placeholder={index === 0 ? "输入标题..." : "按下 / 开始创作"}

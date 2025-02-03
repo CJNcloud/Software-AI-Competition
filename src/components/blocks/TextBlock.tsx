@@ -2,32 +2,9 @@ import React, {useEffect, useRef, useState, useCallback} from 'react'
 import { useDrag, useDrop } from 'react-dnd'
 import { Trash2, GripVertical } from 'lucide-react'
 import { cn } from "@/lib/utils"
-interface BlockProps {
-    id: string
-    type: string
-    content: string
-    onChange: (id: string, content: string) => void
-    onFocus: (id: string) => void
-    onBlur: (id: string|null) => void
-    onKeyDown: (e: React.KeyboardEvent, id: string) => void
-    onDelete: (id: string) => void
-    index: number
-    moveBlock: (DragIndex: number, HoverIndex:  number) => void
-    awareness?: any;
-    userId: string;
-    selectedBlockId: string | null;
-    placeholder?: string;
-    isSelected: boolean;
-    onSelect: (id: string, e: MouseEvent) => void;
-}
-
-interface DragItem {
-    id: string
-    type: string
-    index:number
-}
-
-export const TextBlock: React.FC<BlockProps> = ({
+import { useDragBlock } from '@/hooks/useDragBlock'
+import { TextBlockProps } from './BlockInterface/Block' 
+export const TextBlock: React.FC<TextBlockProps> = ({
                                                 id,
                                                 type,
                                                 content,
@@ -41,18 +18,15 @@ export const TextBlock: React.FC<BlockProps> = ({
                                                 moveBlock,
                                                 awareness,
                                                 userId,
-                                                selectedBlockId,
                                                 placeholder = "按下 / 开始创作",
                                                 isSelected,
                                                 onSelect,
                                             }) => {
-    const ref = useRef<HTMLDivElement>(null)
     const divRef = useRef<HTMLDivElement | null>(null);
     const lastSelectionRef = useRef<{offset: number} | null>(null);
 
     useEffect(() => {
         if (!awareness) return;
-
         const handleAwarenessChange = () => {
             const states = awareness.getStates();
             states.forEach((state: any) => {
@@ -62,7 +36,6 @@ export const TextBlock: React.FC<BlockProps> = ({
                 }
             });
         };
-
         awareness.on('change', handleAwarenessChange);
         return () => awareness.off('change', handleAwarenessChange);
     }, [awareness, id, userId]);
@@ -77,7 +50,6 @@ export const TextBlock: React.FC<BlockProps> = ({
             };
         }
     };
-
     const restoreSelection = useCallback(() => {
         if (!lastSelectionRef.current || !divRef.current) return;
         const selection = window.getSelection();
@@ -94,7 +66,6 @@ export const TextBlock: React.FC<BlockProps> = ({
             console.warn('Failed to restore selection:', e);
         }
     }, []);
-
     useEffect(() => {
         const div = divRef.current;
         if (!div) return;
@@ -124,68 +95,7 @@ export const TextBlock: React.FC<BlockProps> = ({
             restoreSelection();//每次输入都要处理一次返回光标,待优化
         }
     }, [content, restoreSelection]);
-    const [isHovered, setIsHovered] = useState(false)
-    const [{ isDragging }, drag, dragPreview] = useDrag({
-        type: 'BLOCK',
-        item: (): DragItem => ({
-            id,
-            type: 'BLOCK',
-            index,
-        }),
-        collect: (monitor) => ({
-            isDragging: monitor.isDragging(),
-        }),
-    })
-    const [{ isOver }, drop] = useDrop<DragItem, void, { isOver: boolean }>({
-        accept: 'BLOCK',
-        collect: (monitor) => ({
-            isOver: monitor.isOver(),
-        }),
-        hover: (item, monitor) => {
-            if (!ref.current) {
-                return
-            }
-            const dragIndex = item.index
-            const hoverIndex = index
-            // Don't replace items with themselves
-            if (dragIndex === hoverIndex) {
-                return
-            }
-            // Determine rectangle on screen
-            const hoverBoundingRect = ref.current.getBoundingClientRect()
-            // Get vertical middle
-            const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2
-            // Determine mouse position
-            const clientOffset = monitor.getClientOffset()
-            if (!clientOffset) {
-                return
-            }
-            // Get pixels to the top
-            const hoverClientY = clientOffset.y - hoverBoundingRect.top
-            // Only perform the move when the mouse has crossed half of the items height
-            if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) {
-                return
-            }
-            if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) {
-                return
-            }
-            // Don't perform any move until mouse is dropped (this ensures we don't update prematurely)
-        },
-        drop: (item) => {
-            const dragIndex = item.index
-            const hoverIndex = index
-            // Only perform the move when the drag has ended (mouse is dropped)
-            if (dragIndex !== hoverIndex) {
-                moveBlock(dragIndex, hoverIndex)
-            }
-        },
-    })
-
-    // Initialize drag preview         
-    useEffect(() => {
-        dragPreview(drop(ref))
-    }, [dragPreview, drop])
-
+    const {setIsHovered , ref, drag, isDragging, isOver}= useDragBlock(id, index, moveBlock);
     const getBlockStyle = () => {
         switch (type) {
             case 'heading-1':
@@ -206,43 +116,6 @@ export const TextBlock: React.FC<BlockProps> = ({
                 return ''
         }
     }
-
-    useEffect(() => {
-        if (selectedBlockId === id && divRef.current) {
-            divRef.current.focus();
-            
-            // 确保元素中有内容节点
-            if (!divRef.current.firstChild) {
-                divRef.current.appendChild(document.createTextNode(''));
-            }
-            
-            // 将光标移动到内容末尾
-            const selection = window.getSelection();
-            const range = document.createRange();
-            const textNode = divRef.current.firstChild || divRef.current;
-            
-            try {
-                // 如果是文本节点，使用其长度；否则使用 0
-                const length = textNode.nodeType === Node.TEXT_NODE ? 
-                    textNode.textContent?.length || 0 : 0;
-                
-                range.setStart(textNode, length);
-                range.setEnd(textNode, length);
-                
-                selection?.removeAllRanges();
-                selection?.addRange(range);
-                
-                // 确保视图滚动到光标位置
-                const rect = range.getBoundingClientRect();
-                if (rect) {
-                    divRef.current.scrollIntoView({ block: 'nearest' });
-                }
-            } catch (e) {
-                console.warn('Failed to set cursor position:', e);
-            }
-        }
-    }, [id, selectedBlockId, content]);
-
     // 添加一个处理输入的函数
     const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
         const content = e.currentTarget.innerHTML;
@@ -291,6 +164,7 @@ export const TextBlock: React.FC<BlockProps> = ({
             onClick={(e) => onSelect(id, e.nativeEvent)}
             data-block-id={id}
         >
+            {/* 创建一个div，ref属性绑定到ref变量，className属性绑定到"group relative pl-8"，onClick属性绑定到onSelect函数，data-block-id属性绑定到id */}
             <div
                 className={cn(
                     "relative mb-1 transition-all duration-100",
@@ -301,6 +175,7 @@ export const TextBlock: React.FC<BlockProps> = ({
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
+                {/* 创建一个div，className属性绑定到cn函数，isOver属性绑定到"isOver && "border-t-2 border-blue-500""，isDragging属性绑定到"isDragging && "opacity-50""，isSelected属性绑定到"isSelected && "bg-blue-100 dark:bg-blue-900/30""，onMouseEnter属性绑定到setIsHovered函数，onMouseLeave属性绑定到setIsHovered函数 */}
                 <div
                     ref={drag}
                     className={cn(
@@ -311,6 +186,7 @@ export const TextBlock: React.FC<BlockProps> = ({
                         "opacity-0 group-hover:opacity-100 transition-opacity"
                     )}
                 >
+                    {/* 创建一个div，ref属性绑定到drag变量，className属性绑定到cn函数，cursor-move属性绑定到"cursor-move"，hover:bg-gray-100属性绑定到"hover:bg-gray-100"，rounded属性绑定到"rounded"，-translate-x-8属性绑定到"-translate-8"，opacity-0属性绑定到"opacity-0"，group-hover:opacity-100属性绑定到"group-hover:opacity-100"，transition-opacity属性绑定到"transition-opacity" */}
                     <GripVertical className="h-4 w-4 text-gray-400" />
                 </div>
                 
@@ -321,11 +197,6 @@ export const TextBlock: React.FC<BlockProps> = ({
                     className={cn(
                         "min-h-[1.5em] p-1 rounded outline-none",
                         "focus:bg-gray-50 dark:focus:bg-gray-800",
-                        selectedBlockId === id ? (
-                            "empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
-                        ) : (
-                            "empty:before:content-none"
-                        ),
                         "empty:before:pointer-events-none empty:before:h-0 empty:before:float-left",
                         getBlockStyle()
                     )}

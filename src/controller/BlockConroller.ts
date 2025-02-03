@@ -5,7 +5,7 @@ export const handleaddBlock = ( type: string,content: string='',
                                 id : string  =uuidv4(),
                                 ydoc: Y.Doc ) => 
                                 {
-    console.log('handleaddBlock',ydoc.getArray<string>('blocksArray').length);
+    
     return YhandleAddBlock(type,content,id,ydoc);
 };
 export const handlemoveBlock = (dragIndex: number, 
@@ -16,7 +16,7 @@ export const handlemoveBlock = (dragIndex: number,
                                 {
     return YhandlemoveBlock(dragIndex,hoverIndex,ydoc,selectedBlocks);
 }
-export const handledeleteBlock = (id: string , ydoc: Y.Doc = new Y.Doc()) => {
+export const handledeleteBlock = (id: string , ydoc: Y.Doc ) => {
     return YhandledeleteBlock(id,ydoc);
 }
 export const BlockChange = (id: string, content: string, ydoc: Y.Doc= new Y.Doc()) => { 

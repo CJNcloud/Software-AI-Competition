@@ -13,20 +13,24 @@ const getblocksData = (ydoc: Y.Doc) => {
     return blocksData;
 }
 export const YhandleAddBlock = (type: string,content: string='',id : string  =uuidv4(),ydoc: Y.Doc) => {
-    // 获取ydoc中的blocksArray和blocksData
+    // 获取ydoc中的blocksArray和blocksDatac
     const blocksArray = getblocksArray(ydoc);
     const blocksData = getblocksData(ydoc);
-    // 创建一个新的块，并设置其id、content和type
-    const newBlockMap:Y.Map<string> = new Y.Map<string>();
-    newBlockMap.set('id', id);
-    newBlockMap.set('content', content);
-    newBlockMap.set('type', type);
-    // 将新的块添加到blocksData中
-    blocksData.set(id, newBlockMap);
-    // 将新的块的id添加到blocksArray中
-    blocksArray.push([id]);
-    console.log('blocksArray',blocksArray.length);
-    return ydoc;
+    console.log('blocksArrayprev:',blocksArray.length);
+    const blocksArray1 = getblocksArray(ydoc);
+    console.log('blocksArray1prev:',blocksArray1.length);
+        // 创建一个新的块，并设置其id、content和type
+        console.log(blocksData.has(id));
+        const newBlockMap:Y.Map<string> = new Y.Map<string>();
+        newBlockMap.set('id', id);
+        newBlockMap.set('content', content);
+        newBlockMap.set('type', type);
+        // 将新的块添加到blocksData中
+        blocksData.set(id, newBlockMap);
+        // 将新的块的id添加到blocksArray中
+        blocksArray.push([id]);
+        // console.log('blocksArrayafter:',blocksArray.length);
+        return ydoc;
 }
 export const YhandlemoveBlock = (dragIndex: number, 
                                 hoverIndex: number,
@@ -92,7 +96,8 @@ export const YhandleBlockChange = (id: string, content: string,ydoc:Y.Doc) => {
         });
         return ydoc;
 }
-export const YhandledeleteBlock = (id: string , ydoc: Y.Doc = new Y.Doc()) => {
+export const YhandledeleteBlock = (id: string , ydoc: Y.Doc ) => {
+        console.log('blocksArraybefore:');
         const blocksArray = getblocksArray(ydoc);
         const blocksData = getblocksData(ydoc);
         blocksArray.forEach((blockMap, indexArray) => {
@@ -120,4 +125,4 @@ export const YhandletoggleBlockType = (id: string, newType: string, ydoc:Y.Doc= 
             });
         });
         return ydoc;
-    }
+}
