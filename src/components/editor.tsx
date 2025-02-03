@@ -48,11 +48,16 @@ export function Editor({ pageId }: EditorProps) {
         setIsLoading(true);
         const blocksArray = ydoc.getArray<string>('blocksArray');
         const blocksData: Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
+        const blocksContent = ydoc.getText('blocksContent');
         let initialized = false;
         provider.on('sync', (isSynced: boolean) => {
             if (isSynced && !initialized) {
                 initialized = true;
-                console.log('同步完成，当前blocks数量：', blocksArray.length);
+                console.log('同步完成,当前blocks数量:', blocksArray.length);
+                blocksContent.observe(() =>{
+                    const blockcontent = blocksContent.toJSON();
+                    console.log('blocksContent changed:', blockcontent);
+                })
                 // 设置观察者来监听变化
                 blocksArray.observe(() => {
                     const newBlocks: BlockData[] = [];
@@ -189,7 +194,6 @@ export function Editor({ pageId }: EditorProps) {
     setSlashMenuBlockId(null);
     }, [slashMenuBlockId]);
     const addBlock = useCallback((type: string,content: string='',id : string  =uuidv4() ) => {
-        console.log('addBlock',id);
         setYdoc(handleaddBlock(type, content, id, ydoc) );
     }, []); 
     const moveBlock = useCallback((dragIndex: number, hoverIndex: number) => {

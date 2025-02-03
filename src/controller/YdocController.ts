@@ -1,9 +1,6 @@
-import React, {useEffect, useState, useCallback} from 'react'
-import { useDrag, useDrop } from 'react-dnd'
-import { Trash2, GripVertical } from 'lucide-react'
-import { cn } from "@/lib/utils"
 import { v4 as uuidv4 } from 'uuid'
 import * as Y from 'yjs';
+import * as Diff from 'diff';
 const getblocksArray = (ydoc: Y.Doc) => {
     const blocksArray = ydoc.getArray<string>('blocksArray');
     return blocksArray;
@@ -16,11 +13,7 @@ export const YhandleAddBlock = (type: string,content: string='',id : string  =uu
     // 获取ydoc中的blocksArray和blocksDatac
     const blocksArray = getblocksArray(ydoc);
     const blocksData = getblocksData(ydoc);
-    console.log('blocksArrayprev:',blocksArray.length);
-    const blocksArray1 = getblocksArray(ydoc);
-    console.log('blocksArray1prev:',blocksArray1.length);
         // 创建一个新的块，并设置其id、content和type
-        console.log(blocksData.has(id));
         const newBlockMap:Y.Map<string> = new Y.Map<string>();
         newBlockMap.set('id', id);
         newBlockMap.set('content', content);
@@ -79,10 +72,29 @@ export const YhandlemoveBlock = (dragIndex: number,
 export const YhandleBlockChange = (id: string, content: string,ydoc:Y.Doc) => { 
         // 将所有操作包装在一个事务中
         ydoc.transact(() => {
+            const blocksContent = ydoc.getText('blocksContent');
             // 获取blocksArray数组
             const blocksArray = getblocksArray(ydoc);
             // 获取blocksData映射
             const blocksData = getblocksData(ydoc);
+            const oldContent = blocksData.get(id)!.get('content')!;
+            const newContent = content;
+            const diffContent = Diff.diffChars(oldContent, newContent);
+            console.log('newContent:',newContent);
+            console.log('blocksData:',blocksData.get(id)!.get('content'));
+            console.log('diffContent:',diffContent);
+            let label=-1;
+            diffContent.forEach((part) => {
+                label+=part.count!;
+                if (part.added) {
+                    blocksContent.insert(label,part.value);
+                }
+                else if (part.removed) {
+                    blocksContent.delete(label,part.count!);
+                    label-=part.count!;
+                }
+            })
+            console.log('blocksContent:',blocksContent.toDelta());
             // 遍历blocksArray数组
             blocksArray.forEach((blockMap,index) => {
                 // 如果blocksData映射中id与传入的id相等

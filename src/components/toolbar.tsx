@@ -7,10 +7,14 @@ interface FloatingToolbarProps {
     onToggleType: (type: string) => void
 }
 
+// 导出一个名为FloatingToolbar的React函数组件，接收一个名为FloatingToolbarProps的props参数
 export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ blockId, onToggleType }) => {
+    // 定义一个名为position的状态变量，初始值为{ top: 0, left: 0 }
     const [position, setPosition] = useState({ top: 0, left: 0 })
+    // 定义一个名为isVisible的状态变量，初始值为false
     const [isVisible, setIsVisible] = useState(false)
 
+    // 使用useEffect钩子函数，监听selectionchange事件，更新position和isVisible的值
     useEffect(() => {
         const updatePosition = () => {
             const selection = window.getSelection()
@@ -31,6 +35,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ blockId, onTog
         return () => document.removeEventListener('selectionchange', updatePosition)
     }, [blockId])
 
+    // 定义一个名为applyStyle的函数，用于应用样式
     const applyStyle = (tag: string, className?: string) => {
         const selection = window.getSelection()
         if (!selection || selection.rangeCount === 0) return
@@ -53,6 +58,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ blockId, onTog
         selection.addRange(newRange)
     }
 
+    // 定义一个名为handleInlineStyle的函数，用于处理内联样式
     const handleInlineStyle = (style: string) => {
         switch (style) {
             case 'bold':
@@ -73,6 +79,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ blockId, onTog
         }
     }
 
+    // 定义一个名为removeStyle的函数，用于移除样式
     const removeStyle = (nodeName: string) => {
         const selection = window.getSelection()
         if (!selection || selection.rangeCount === 0) return
@@ -88,6 +95,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ blockId, onTog
         }
     }
 
+    // 定义一个名为toggleStyle的函数，用于切换样式
     const toggleStyle = (style: string) => {
         const selection = window.getSelection()
         if (!selection || selection.rangeCount === 0) return
@@ -117,8 +125,10 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ blockId, onTog
         }
     }
 
+    // 如果isVisible为false，则返回null
     if (!isVisible) return null
 
+    // 返回一个div元素，包含多个Button元素，用于切换样式
     return (
         <div
             className="fixed z-10 bg-white shadow-lg rounded-lg p-1 flex gap-1"

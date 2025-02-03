@@ -1,3 +1,4 @@
+import * as Y from 'yjs';
 export interface BlockProps {
     id: string
     type: string
@@ -18,5 +19,6 @@ export interface TextBlockProps extends BlockProps{
     placeholder?: string;
 }
 export interface ImageBlockProps extends BlockProps{
+    content:string;
     adjustImage?: (x: number, y: number) => void
 }
