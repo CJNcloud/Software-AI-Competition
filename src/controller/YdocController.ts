@@ -9,21 +9,27 @@ const getblocksData = (ydoc: Y.Doc) => {
     const blocksData:Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
     return blocksData;
 }
+const getblocksContent = (ydoc: Y.Doc) => {
+    const blocksContent = ydoc.getMap<Y.Text>('blocksContent');
+    return blocksContent;
+}
 export const YhandleAddBlock = (type: string,content: string='',id : string  =uuidv4(),ydoc: Y.Doc) => {
     // 获取ydoc中的blocksArray和blocksDatac
+    const blocksContent = getblocksContent(ydoc);
     const blocksArray = getblocksArray(ydoc);
     const blocksData = getblocksData(ydoc);
-        // 创建一个新的块，并设置其id、content和type
-        const newBlockMap:Y.Map<string> = new Y.Map<string>();
-        newBlockMap.set('id', id);
-        newBlockMap.set('content', content);
-        newBlockMap.set('type', type);
-        // 将新的块添加到blocksData中
-        blocksData.set(id, newBlockMap);
-        // 将新的块的id添加到blocksArray中
-        blocksArray.push([id]);
-        // console.log('blocksArrayafter:',blocksArray.length);
-        return ydoc;
+    // 创建一个新的块，并设置其id、content和type
+    const newBlockMap:Y.Map<string> = new Y.Map<string>();
+    newBlockMap.set('id', id);
+    newBlockMap.set('content', content);
+    newBlockMap.set('type', type);
+    // 将新的块添加到blocksData中
+    blocksData.set(id, newBlockMap);
+    // 将新的块的id添加到blocksArray中
+    blocksArray.push([id]);
+    // console.log('blocksArrayafter:',blocksArray.length);
+    blocksContent.set(id, new Y.Text());
+    return ydoc;
 }
 export const YhandlemoveBlock = (dragIndex: number, 
                                 hoverIndex: number,
@@ -72,7 +78,8 @@ export const YhandlemoveBlock = (dragIndex: number,
 export const YhandleBlockChange = (id: string, content: string,ydoc:Y.Doc) => { 
         // 将所有操作包装在一个事务中
         ydoc.transact(() => {
-            const blocksContent = ydoc.getText('blocksContent');
+            // console.log('nowcontent',content)
+            const blocksContent = getblocksContent(ydoc);
             // 获取blocksArray数组
             const blocksArray = getblocksArray(ydoc);
             // 获取blocksData映射
@@ -80,25 +87,31 @@ export const YhandleBlockChange = (id: string, content: string,ydoc:Y.Doc) => {
             const oldContent = blocksData.get(id)!.get('content')!;
             const newContent = content;
             const diffContent = Diff.diffChars(oldContent, newContent);
-            console.log('newContent:',newContent);
-            console.log('blocksData:',blocksData.get(id)!.get('content'));
-            console.log('diffContent:',diffContent);
             let label=-1;
+            // console.log('oldContent',oldContent);
+            // console.log('newContent',newContent);
             diffContent.forEach((part) => {
                 label+=part.count!;
                 if (part.added) {
-                    blocksContent.insert(label,part.value);
+                    // console.log('part.added:',part.added);
+                    blocksContent.get(id)!.insert(label,part.value);
                 }
                 else if (part.removed) {
-                    blocksContent.delete(label,part.count!);
+                    // console.log('part.removed:',part.removed);
+                    blocksContent.get(id)!.delete(label,part.count!);
                     label-=part.count!;
                 }
             })
-            console.log('blocksContent:',blocksContent.toDelta());
+            const tempid= uuidv4();
+            blocksContent.set(tempid,new Y.Text(''));
+            blocksContent.delete(tempid);
+            //让blocksContent观察者起作用一下
+            // console.log('blocksContent:',blocksContent.get(id)!.toDelta());
             // 遍历blocksArray数组
             blocksArray.forEach((blockMap,index) => {
                 // 如果blocksData映射中id与传入的id相等
                 if (blocksData.get(blockMap)!.get('id') === id) {
+                    // console.log('Blockdata',blocksData.get(blockMap)!.get('content'));
                     blocksData.get(blockMap)!.set('content', content);
                     // 2. 删除并重新插入以触发更新
                     blocksArray.delete(index,1);
@@ -138,3 +151,52 @@ export const YhandletoggleBlockType = (id: string, newType: string, ydoc:Y.Doc= 
         });
         return ydoc;
 }
+export const YhandletoggleStyle = (blockId: string,style: string,ydoc:Y.Doc= new Y.Doc()) => {
+     ydoc.transact(() => {
+                const selection = window.getSelection()
+                if (!selection || selection.rangeCount === 0) return
+                const range = selection.getRangeAt(0)
+                const selectedText = range.toString()
+                const blocksContent = ydoc.getMap<Y.Text>('blocksContent');
+                let index = blocksContent.get(blockId)!.toString().indexOf(selectedText);
+                const endindex = blocksContent.get(blockId)!.toString().indexOf(selectedText)+selectedText.length-1;
+                const delta = blocksContent.get(blockId)!.toDelta();
+                console.log('delta', delta)
+                console.log('index', index)
+                let currentIndex = 0;
+                let hasStyle = false;
+                for (const op of delta) {
+                    const length = op.insert.length;
+                    // 检查当前片段是否包含选中文本
+                    if (currentIndex <= index && index < currentIndex + length && index<= endindex) {
+                        // 检查是否有对应的样式
+                        // console.log('op.attributes', op.attributes)
+                        // console.log('selectedText.length',selectedText.length )
+                        hasStyle = Boolean(op.attributes?.[style]);
+                        console.log(index+selectedText.length -1,'endindex',endindex)
+                        const styleLength = index+selectedText.length  <= currentIndex + op.insert.length  ? 
+                        selectedText.length : currentIndex + op.insert.length - index ;
+                        console.log('styleLength', styleLength)
+                        if (hasStyle) {
+                            blocksContent.get(blockId)!.format(index, styleLength , {
+                                [style]: null  // 移除样式
+                            });
+                        } else {
+                            blocksContent.get(blockId)!.format(index, styleLength , {
+                                [style]: true  // 添加样式
+                            });
+                        }
+                        console.log('blocksContent', blocksContent.get(blockId)!.toDelta())
+                        index = currentIndex + length ;
+                        const tempid= uuidv4();
+                        blocksContent.set(tempid,new Y.Text(''));
+                        blocksContent.delete(tempid);
+                    }
+                    // 根据是否有样式决定添加还是移除
+                    currentIndex += length; // 更新当前索引
+                    console.log('currentIndex', currentIndex,'index',index)
+                }
+            }
+        )
+        return ydoc
+    };

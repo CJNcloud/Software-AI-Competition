@@ -12,10 +12,15 @@ import { SimpleStompProvider } from '@/lib/simple-stomp-provider'
 import { ImageBlock } from './blocks/ImageBlock'
 import { AIPicture, AIsummary } from './AI'
 import { handleaddBlock, BlockChange, handledeleteBlock, handletoggleBlockType, handlemoveBlock,BlockSelect} from '@/controller/BlockConroller'
+import { styleText } from 'util'
 interface BlockData {
     id: string;
     type: string;
     content: string;
+}
+interface BlocksStyle {
+    id: string
+    style:{ length: number, attributes: { [key: string]: string[] } }[]
 }
 interface EditorProps {
     pageId: string;
@@ -23,6 +28,7 @@ interface EditorProps {
 
 export function Editor({ pageId }: EditorProps) {
     const [blocks, setBlocks] = useState<BlockData[]>([]);
+    const [blockstyle,setBlockstyle] = useState<BlocksStyle[]>([])
     const [ydoc, setYdoc] = useState(() => {
         return new Y.Doc();
       });
@@ -48,21 +54,37 @@ export function Editor({ pageId }: EditorProps) {
         setIsLoading(true);
         const blocksArray = ydoc.getArray<string>('blocksArray');
         const blocksData: Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
-        const blocksContent = ydoc.getText('blocksContent');
+        const blocksContent :Y.Map<Y.Text>= ydoc.getMap<Y.Text>('blocksContent');
         let initialized = false;
         provider.on('sync', (isSynced: boolean) => {
             if (isSynced && !initialized) {
                 initialized = true;
                 console.log('同步完成,当前blocks数量:', blocksArray.length);
                 blocksContent.observe(() =>{
-                    const blockcontent = blocksContent.toJSON();
-                    console.log('blocksContent changed:', blockcontent);
+                    const style: BlocksStyle[] = [];
+                    blocksContent.forEach((blockcontent,blockid) => {
+                        // console.log('change',blockid, 'blockcontent',blockcontent.toDelta());
+                        const ts = blockcontent.toDelta()!.map((item: { insert: string, attributes?: { style?: string[] } }) => {
+                            const attributes = item.attributes || {};
+                            return {
+                              length: item.insert.length,
+                              attributes: attributes
+                            };
+                          });
+                        // console.log('ts',ts);
+                        const tempstyle : { id: string, style: { length: number, attributes: { [key: string]: string[] } }[] }= { id: blockid, style: ts }
+                        console.log('tempstyle', tempstyle);
+                        style.push(tempstyle);
+                    });
+                    setBlockstyle(style);
                 })
                 // 设置观察者来监听变化
                 blocksArray.observe(() => {
+                    // console.log('blocksArray changed:');
                     const newBlocks: BlockData[] = [];
                     blocksArray.forEach((blockId) => {
                         const blockData = blocksData.get(blockId);
+                        // console.log(blockData!.get('content')!);
                         if (blockData) {
                             newBlocks.push({
                                 id: blockData.get('id')!,
@@ -84,6 +106,7 @@ export function Editor({ pageId }: EditorProps) {
     }, [pageId]);
     const handleBlockChange = useCallback((id: string, content: string) => { 
         // 将所有操作包装在一个事务中
+        // console.log('change',id,content);
         BlockChange(id, content, ydoc);
     }, []);
     const handleBlockFocus = useCallback((id: string) => {
@@ -243,7 +266,10 @@ export function Editor({ pageId }: EditorProps) {
             console.error('AI Summary failed:', error);
         }
     }, [blocks, addBlock, deleteBlock]);
-    
+    const getBlockStyle = useCallback((blockid: string) => {
+    const blockStyle = blockstyle.find((style) => style.id === blockid);
+    return blockStyle?.style || [];
+    }, [blockstyle]);
     return (
         <DndProvider backend={HTML5Backend} options={{ enableMouseEvents: true }}>
             <div className="w-full max-w-4xl mx-auto p-4 bg-white min-h-screen relative">
@@ -258,34 +284,36 @@ export function Editor({ pageId }: EditorProps) {
                             {blocks.map((block, index) => (
                                 block.type === 'image' ? (
                                     <ImageBlock
-                                        key={block.id}
+                                        key = {block.id}
                                         {...block}
-                                        onChange={handleBlockChange}
-                                        onFocus={handleBlockFocus}
-                                        onBlur={handleBlockBlur}
-                                        onDelete={deleteBlock}  
-                                        index={index}
+                                        onChange = {handleBlockChange}
+                                        onFocus = {handleBlockFocus}
+                                        onBlur = {handleBlockBlur}
+                                        onDelete = {deleteBlock}  
+                                        index = {index}
                                         moveBlock={moveBlock}
-                                        isSelected={selectedBlocks.has(block.id)}
-                                        onSelect={handleBlockSelect}
-                                        userId={userId.current}
+                                        isSelected = {selectedBlocks.has(block.id)}
+                                        onSelect = {handleBlockSelect}
+                                        userId = {userId.current}
+                                        // style = {blockstyle}
                                     />
                                 ) : (
                                     <TextBlock
-                                        key={block.id}
+                                        key = {block.id}
                                         {...block}
-                                        onChange={handleBlockChange}
-                                        onFocus={handleBlockFocus}
-                                        onBlur={handleBlockBlur}
-                                        onKeyDown={handleKeyDown}
-                                        onDelete={deleteBlock}
-                                        index={index}
-                                        moveBlock={moveBlock}
-                                        awareness={awareness}
-                                        userId={userId.current}
-                                        isSelected={selectedBlocks.has(block.id)}
-                                        onSelect={handleBlockSelect}
-                                        placeholder={index === 0 ? "输入标题..." : "按下 / 开始创作"}
+                                        onChange = {handleBlockChange}
+                                        onFocus = {handleBlockFocus}
+                                        onBlur = {handleBlockBlur}
+                                        onKeyDown = {handleKeyDown}
+                                        onDelete = {deleteBlock}
+                                        index = {index}
+                                        moveBlock = {moveBlock}
+                                        awareness = {awareness}
+                                        userId = {userId.current}
+                                        isSelected = {selectedBlocks.has(block.id)}
+                                        onSelect = {handleBlockSelect}
+                                        placeholder = {index === 0 ? "输入标题..." : "按下 / 开始创作"}
+                                        style = {getBlockStyle(block.id)!}
                                     />
                                 )
                             ))}
@@ -322,6 +350,7 @@ export function Editor({ pageId }: EditorProps) {
                             <FloatingToolbar
                                 blockId={selectedBlockId}
                                 onToggleType={(type) => toggleBlockType(selectedBlockId, type)}
+                                ydoc={ydoc}
                             />
                         )}
                         {showSlashMenu && (

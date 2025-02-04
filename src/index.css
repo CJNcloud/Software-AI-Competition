@@ -64,3 +64,8 @@
         @apply bg-background text-foreground;
     }
 }
+@layer components {
+    [contenteditable][data-placeholder]:empty::before {
+        @apply content-[attr(data-placeholder)] text-slate-400 absolute pointer-events-none;
+    }
+}

@@ -1,9 +1,9 @@
 import React, {useEffect, useRef, useState, useCallback} from 'react'
-import { useDrag, useDrop } from 'react-dnd'
 import { Trash2, GripVertical } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { useDragBlock } from '@/hooks/useDragBlock'
 import { TextBlockProps } from './BlockInterface/Block' 
+import { StyledContent } from '../StyledContent'
 export const TextBlock: React.FC<TextBlockProps> = ({
                                                 id,
                                                 type,
@@ -21,6 +21,7 @@ export const TextBlock: React.FC<TextBlockProps> = ({
                                                 placeholder = "按下 / 开始创作",
                                                 isSelected,
                                                 onSelect,
+                                                style,
                                             }) => {
     const divRef = useRef<HTMLDivElement | null>(null);
     const lastSelectionRef = useRef<{offset: number} | null>(null);
@@ -95,6 +96,10 @@ export const TextBlock: React.FC<TextBlockProps> = ({
             restoreSelection();//每次输入都要处理一次返回光标,待优化
         }
     }, [content, restoreSelection]);
+    useEffect(() => {
+        // console.log(JSON.stringify(style));
+        console.log('style',style);
+    },[style])
     const {setIsHovered , ref, drag, isDragging, isOver}= useDragBlock(id, index, moveBlock);
     const getBlockStyle = () => {
         switch (type) {
@@ -118,14 +123,9 @@ export const TextBlock: React.FC<TextBlockProps> = ({
     }
     // 添加一个处理输入的函数
     const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
-        const content = e.currentTarget.innerHTML;
+        const content = e.currentTarget.textContent!;
         // 如果内容只包含 <br> 或者为空，则将内容设置为空字符串
-        if (content === '<br>' || content === '&nbsp;' || content === '') {
-            e.currentTarget.innerHTML = '';
-            onChange(id, '');
-        } else {
-            onChange(id, content);
-        }
+        onChange(id, content);
     };
 
     // 添加一个处理键盘事件的函数
@@ -156,7 +156,6 @@ export const TextBlock: React.FC<TextBlockProps> = ({
         }
         onKeyDown(e, id);
     };
-
     return (
         <div
             ref={ref}
@@ -189,7 +188,6 @@ export const TextBlock: React.FC<TextBlockProps> = ({
                     {/* 创建一个div，ref属性绑定到drag变量，className属性绑定到cn函数，cursor-move属性绑定到"cursor-move"，hover:bg-gray-100属性绑定到"hover:bg-gray-100"，rounded属性绑定到"rounded"，-translate-x-8属性绑定到"-translate-8"，opacity-0属性绑定到"opacity-0"，group-hover:opacity-100属性绑定到"group-hover:opacity-100"，transition-opacity属性绑定到"transition-opacity" */}
                     <GripVertical className="h-4 w-4 text-gray-400" />
                 </div>
-                
                 <div
                     ref={divRef}
                     contentEditable
@@ -206,7 +204,7 @@ export const TextBlock: React.FC<TextBlockProps> = ({
                     onBlur={() => onBlur(id)}
                     onKeyDown={handleKeyDownInternal}
                 >
-                    {content}
+                    <StyledContent content={content} style={style} />
                 </div>
 
                 <button

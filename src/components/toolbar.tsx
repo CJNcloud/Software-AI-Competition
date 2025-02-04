@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { Bold, Italic, Code, Type, List, ListOrdered, Quote } from 'lucide-react'
 import { Button } from "@/components/ui/button"
-
+import * as Y from 'yjs';
+import { v4 as uuidv4 } from 'uuid'
+import { YhandletoggleStyle } from '@/controller/YdocController';
 interface FloatingToolbarProps {
-    blockId: string
-    onToggleType: (type: string) => void
+    blockId: string,
+    onToggleType: (type: string) => void,
+    ydoc: Y.Doc
 }
-
-// 导出一个名为FloatingToolbar的React函数组件，接收一个名为FloatingToolbarProps的props参数
-export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ blockId, onToggleType }) => {
+export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ blockId, onToggleType, ydoc }) => {
     // 定义一个名为position的状态变量，初始值为{ top: 0, left: 0 }
+    const [Ydoc, setYdoc] = useState(ydoc);
     const [position, setPosition] = useState({ top: 0, left: 0 })
     // 定义一个名为isVisible的状态变量，初始值为false
     const [isVisible, setIsVisible] = useState(false)
@@ -36,26 +38,18 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ blockId, onTog
     }, [blockId])
 
     // 定义一个名为applyStyle的函数，用于应用样式
-    const applyStyle = (tag: string, className?: string) => {
+    const applyStyle = (className: string) => {
         const selection = window.getSelection()
         if (!selection || selection.rangeCount === 0) return
         const range = selection.getRangeAt(0)
-        const selectedContent = range.extractContents()
-        const wrapper = document.createElement(tag)
-        console.log('Selection range:', selection);
-
-        if (className) {
-            wrapper.className = className
-        }
-
-        wrapper.appendChild(selectedContent)
-        range.insertNode(wrapper)
-
-        // 重新设置选区
-        selection.removeAllRanges()
-        const newRange = document.createRange()
-        newRange.selectNodeContents(wrapper)
-        selection.addRange(newRange)
+        const selectedText = range.toString()
+        const blocksContent = Ydoc.getMap<Y.Text>('blocksContent');
+        const index = blocksContent.get(blockId)!.toString().indexOf(selectedText);
+        console.log('index', index)
+        blocksContent.get(blockId)!.format(index, index + selectedText.length, {
+            [className]: true  // 添加样式
+        });
+        console.log('blocksContent', blocksContent.get(blockId)!.toDelta())
     }
 
     // 定义一个名为handleInlineStyle的函数，用于处理内联样式
@@ -68,7 +62,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ blockId, onTog
                 applyStyle('em')
                 break
             case 'code':
-                applyStyle('code', 'bg-gray-100 px-1 rounded font-mono')
+                applyStyle('bg-gray-100 px-1 rounded font-mono')
                 break
             case 'heading-1':
             case 'bullet-list':
@@ -80,51 +74,37 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ blockId, onTog
     }
 
     // 定义一个名为removeStyle的函数，用于移除样式
-    const removeStyle = (nodeName: string) => {
-        const selection = window.getSelection()
-        if (!selection || selection.rangeCount === 0) return
-
-        const range = selection.getRangeAt(0)
-        const ancestor = range.commonAncestorContainer
-        const parentElement = ancestor.nodeType === 3 ? ancestor.parentElement : ancestor as Element
-
-        if (parentElement?.nodeName.toLowerCase() === nodeName.toLowerCase()) {
-            const content = parentElement.textContent
-            const textNode = document.createTextNode(content || '')
-            parentElement.parentNode?.replaceChild(textNode, parentElement)
-        }
+    // const removeStyle = (className: string) => {
+    //     const selection = window.getSelection()
+    //     if (!selection || selection.rangeCount === 0) return
+    //     const range = selection.getRangeAt(0)
+    //     const selectedText = range.toString()
+    //     const blocksContent = Ydoc.getMap<Y.Text>('blocksContent');
+    //     const index = blocksContent.get(blockId)!.toString().indexOf(selectedText);
+    //     console.log('removeindex', index)
+    //     blocksContent.get(blockId)!.format(index, index + selectedText.length-1, {
+    //         [className]: null  // 移除样式
+    //     });
+    //     console.log('blocksContent', blocksContent.get(blockId)!.toDelta())
+    // }
+    const handletoggleStyle = (style: string) => {
+        setYdoc(YhandletoggleStyle(blockId,style,Ydoc))
     }
-
     // 定义一个名为toggleStyle的函数，用于切换样式
     const toggleStyle = (style: string) => {
-        const selection = window.getSelection()
-        if (!selection || selection.rangeCount === 0) return
-
-        const range = selection.getRangeAt(0)
-        const ancestor = range.commonAncestorContainer
-        const parentElement = ancestor.nodeType === 3 ? ancestor.parentElement : ancestor as Element
-
         switch (style) {
             case 'bold':
-                if (parentElement?.nodeName === 'STRONG') {
-                    removeStyle('strong')
-                } else {
-                    applyStyle('strong')
-                }
+                handletoggleStyle(style);
                 break
             case 'italic':
-                if (parentElement?.nodeName === 'EM') {
-                    removeStyle('em')
-                } else {
-                    applyStyle('em')
-                }
+                handletoggleStyle(style);
                 break
             default:
                 onToggleType(style)
                 break
         }
     }
-
+    
     // 如果isVisible为false，则返回null
     if (!isVisible) return null
 
@@ -165,7 +145,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ blockId, onTog
             <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleInlineStyle('heading-1')}
+                onClick={() => toggleStyle('heading-1')}
                 className="hover:bg-gray-100"
             >
                 <Type className="h-4 w-4" />
@@ -173,7 +153,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ blockId, onTog
             <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleInlineStyle('bullet-list')}
+                onClick={() => toggleStyle('bullet-list')}
                 className="hover:bg-gray-100"
             >
                 <List className="h-4 w-4" />
@@ -181,7 +161,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ blockId, onTog
             <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleInlineStyle('numbered-list')}
+                onClick={() => toggleStyle('numbered-list')}
                 className="hover:bg-gray-100"
             >
                 <ListOrdered className="h-4 w-4" />
