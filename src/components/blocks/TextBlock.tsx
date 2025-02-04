@@ -3,7 +3,6 @@ import { Trash2, GripVertical } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { useDragBlock } from '@/hooks/useDragBlock'
 import { TextBlockProps } from './BlockInterface/Block' 
-import { StyledContent } from '../StyledContent'
 export const TextBlock: React.FC<TextBlockProps> = ({
                                                 id,
                                                 type,
@@ -156,6 +155,38 @@ export const TextBlock: React.FC<TextBlockProps> = ({
         }
         onKeyDown(e, id);
     };
+    const renderStyledContent = () => {
+        if (!style || !content) return content;
+    
+        let currentPosition = 0;
+        return style.map((segment, index) => {
+            const text = content.substr(currentPosition, segment.length);
+            currentPosition += segment.length;
+            
+            // 检查是否有样式属性
+            const hasAttributes = segment.attributes && 
+                                Object.keys(segment.attributes).length > 0;
+    
+            // 如果没有样式属性，直接返回文本
+            if (!hasAttributes) {
+                return text;
+            }
+    
+            // 如果有样式属性，用span包裹并添加相应的样式
+            return (
+                <span 
+                    key={index}
+                    className={cn({
+                        'font-bold': segment.attributes.bold,
+                        'italic': segment.attributes.italic,
+                        // 添加其他样式映射
+                    })}
+                >
+                    {text}
+                </span>
+            );
+        });
+    };
     return (
         <div
             ref={ref}
@@ -204,7 +235,7 @@ export const TextBlock: React.FC<TextBlockProps> = ({
                     onBlur={() => onBlur(id)}
                     onKeyDown={handleKeyDownInternal}
                 >
-                    <StyledContent content={content} style={style} />
+                    {renderStyledContent()}
                 </div>
 
                 <button
