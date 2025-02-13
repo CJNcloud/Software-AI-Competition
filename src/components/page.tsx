@@ -8,11 +8,10 @@ import { v4 as uuidv4 } from 'uuid'
 import { Button } from "@/components/ui/button"
 import { Plus } from 'lucide-react'
 import * as Y from 'yjs';
-import { SimpleStompProvider } from '@/lib/simple-stomp-provider'
+import { WebsocketProvider } from 'y-websocket';
 import { ImageBlock } from './blocks/ImageBlock'
 import { AIPicture, AIsummary } from './AI'
 import { handleaddBlock, BlockChange, handledeleteBlock, handletoggleBlockType, handlemoveBlock,BlockSelect} from '@/controller/BlockConroller'
-import { styleText } from 'util'
 interface BlockData {
     id: string;
     type: string;
@@ -46,67 +45,105 @@ export function Editor({ pageId }: EditorProps) {
         blocksRef.current = blocks;
     }, [blocks]);
     useEffect(() => {
-        const provider = new SimpleStompProvider(
-            'ws://forfries.com:8887/ws',
-            pageId,
-            ydoc
-        );
+        // const provider = new SimpleStompProvider(
+        //     'ws://forfries.com:8887/ws',
+        //     pageId,
+        //     ydoc
+        // );
         setIsLoading(true);
         const blocksArray = ydoc.getArray<string>('blocksArray');
         const blocksData: Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
         const blocksContent :Y.Map<Y.Text>= ydoc.getMap<Y.Text>('blocksContent');
         let initialized = false;
-        provider.on('sync', (isSynced: boolean) => {
-            if (isSynced && !initialized) {
-                initialized = true;
-                console.log('同步完成,当前blocks数量:', blocksArray.length);
-                blocksContent.observe(() =>{
-                    const style: BlocksStyle[] = [];
-                    blocksContent.forEach((blockcontent,blockid) => {
-                        // console.log('change',blockid, 'blockcontent',blockcontent.toDelta());
-                        const ts = blockcontent.toDelta()!.map((item: { insert: string, attributes?: { style?: string[] } }) => {
-                            const attributes = item.attributes || {};
-                            return {
-                              length: item.insert.length,
-                              attributes: attributes
-                            };
-                          });
-                        // console.log('ts',ts);
-                        const tempstyle : { id: string, style: { length: number, attributes: { [key: string]: string[] } }[] }= { id: blockid, style: ts }
-                        console.log('tempstyle', tempstyle);
-                        style.push(tempstyle);
-                    });
-                    setBlockstyle(style);
-                })
-                // 设置观察者来监听变化
-                blocksArray.observe(() => {
-                    // console.log('blocksArray changed:');
-                    const newBlocks: BlockData[] = [];
-                    blocksArray.forEach((blockId) => {
-                        const blockData = blocksData.get(blockId);
-                        // console.log(blockData!.get('content')!);
-                        if (blockData) {
-                            newBlocks.push({
-                                id: blockData.get('id')!,
-                                type: blockData.get('type')!,
-                                content: blockData.get('content')!,
-                            });
-                        }
-                    });
-                    // console.log(newBlocks);
-                    setBlocks(newBlocks);
+        // provider.on('sync', (isSynced: boolean) => {
+        //     if (isSynced && !initialized) {
+        //         initialized = true;
+        //         console.log('同步完成,当前blocks数量:', blocksArray.length);
+        //         blocksContent.observe(() =>{
+        //             const style: BlocksStyle[] = [];
+        //             blocksContent.forEach((blockcontent,blockid) => {
+        //                 // console.log('change',blockid, 'blockcontent',blockcontent.toDelta());
+        //                 const ts = blockcontent.toDelta()!.map((item: { insert: string, attributes?: { style?: string[] } }) => {
+        //                     const attributes = item.attributes || {};
+        //                     return {
+        //                       length: item.insert.length,
+        //                       attributes: attributes
+        //                     };
+        //                   });
+        //                 // console.log('ts',ts);
+        //                 const tempstyle : { id: string, style: { length: number, attributes: { [key: string]: string[] } }[] }= { id: blockid, style: ts }
+        //                 console.log('tempstyle', tempstyle);
+        //                 style.push(tempstyle);
+        //             });
+        //             setBlockstyle(style);
+        //         })
+        //         // 设置观察者来监听变化
+        //         blocksArray.observe(() => {
+        //             // console.log('blocksArray changed:');
+        //             const newBlocks: BlockData[] = [];
+        //             blocksArray.forEach((blockId) => {
+        //                 const blockData = blocksData.get(blockId);
+        //                 // console.log(blockData!.get('content')!);
+        //                 if (blockData) {
+        //                     newBlocks.push({
+        //                         id: blockData.get('id')!,
+        //                         type: blockData.get('type')!,
+        //                         content: blockData.get('content')!,
+        //                     });
+        //                 }
+        //             });
+        //             // console.log(newBlocks);
+        //             setBlocks(newBlocks);
+        //         });
+        //         setIsLoading(false);
+        //     }
+        initialized = true;
+            console.log('同步完成,当前blocks数量:', blocksArray.length);
+            blocksContent.observe(() =>{
+                const style: BlocksStyle[] = [];
+                blocksContent.forEach((blockcontent,blockid) => {
+                    // console.log('change',blockid, 'blockcontent',blockcontent.toDelta());
+                    const ts = blockcontent.toDelta()!.map((item: { insert: string, attributes?: { style?: string[] } }) => {
+                        const attributes = item.attributes || {};
+                        return {
+                          length: item.insert.length,
+                          attributes: attributes
+                        };
+                      });
+                    // console.log('ts',ts);
+                    const tempstyle : { id: string, style: { length: number, attributes: { [key: string]: string[] } }[] }= { id: blockid, style: ts }
+                    console.log('tempstyle', tempstyle);
+                    style.push(tempstyle);
                 });
-                setIsLoading(false);
-            }
-        });
+                setBlockstyle(style);
+            })
+            // 设置观察者来监听变化
+            blocksArray.observe(() => {
+                // console.log('blocksArray changed:');
+                const newBlocks: BlockData[] = [];
+                blocksArray.forEach((blockId) => {
+                    const blockData = blocksData.get(blockId);
+                    // console.log(blockData!.get('content')!);
+                    if (blockData) {
+                        newBlocks.push({
+                            id: blockData.get('id')!,
+                            type: blockData.get('type')!,
+                            content: blockData.get('content')!,
+                        });
+                    }
+                });
+                // console.log(newBlocks);
+                setBlocks(newBlocks);
+            });
+            setIsLoading(false);
         return () => {
-            provider.destroy();
+            // provider.destroy();
             ydoc.destroy();
         };
     }, [pageId]);
-    const handleBlockChange = useCallback((id: string, content: string) => { 
+    const handleBlockChange = useCallback((id: string, content: string='') => { 
         // 将所有操作包装在一个事务中
-        // console.log('change',id,content);
+        console.log(id,'+',content)
         BlockChange(id, content, ydoc);
     }, []);
     const handleBlockFocus = useCallback((id: string) => {
@@ -218,7 +255,7 @@ export function Editor({ pageId }: EditorProps) {
     }, [slashMenuBlockId]);
     const addBlock = useCallback((type: string,content: string='',id : string  =uuidv4() ) => {
         setYdoc(handleaddBlock(type, content, id, ydoc) );
-    }, []); 
+    }, [ydoc]); 
     const moveBlock = useCallback((dragIndex: number, hoverIndex: number) => {
         setYdoc(handlemoveBlock(dragIndex, hoverIndex, ydoc, selectedBlocks));
     }, [selectedBlocks]);
@@ -295,7 +332,6 @@ export function Editor({ pageId }: EditorProps) {
                                         isSelected = {selectedBlocks.has(block.id)}
                                         onSelect = {handleBlockSelect}
                                         userId = {userId.current}
-                                        // style = {blockstyle}
                                     />
                                 ) : (
                                     <TextBlock

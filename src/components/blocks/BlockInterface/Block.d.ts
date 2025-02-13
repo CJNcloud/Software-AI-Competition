@@ -13,11 +13,11 @@ export interface BlockProps {
     userId: string;
     isSelected: boolean;
     onSelect: (id: string, e: MouseEvent) => void;
-    style?: { length: number, attributes: { [key: string]: string[] } }[];
 }
 export interface TextBlockProps extends BlockProps{
     onKeyDown: (e: React.KeyboardEvent, id: string) => void
     placeholder?: string;
+    style?: { length: number, attributes: { [key: string]: string[] } }[];
 }
 export interface ImageBlockProps extends BlockProps{
     adjustImage?: (x: number, y: number) => void

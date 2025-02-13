@@ -123,7 +123,6 @@ export const TextBlock: React.FC<TextBlockProps> = ({
     // 添加一个处理输入的函数
     const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
         const content = e.currentTarget.textContent!;
-        // 如果内容只包含 <br> 或者为空，则将内容设置为空字符串
         onChange(id, content);
     };
 

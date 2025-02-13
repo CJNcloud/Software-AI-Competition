@@ -88,8 +88,6 @@ export const YhandleBlockChange = (id: string, content: string,ydoc:Y.Doc) => {
             const newContent = content;
             const diffContent = Diff.diffChars(oldContent, newContent);
             let label=-1;
-            // console.log('oldContent',oldContent);
-            // console.log('newContent',newContent);
             diffContent.forEach((part) => {
                 label+=part.count!;
                 if (part.added) {
@@ -125,11 +123,13 @@ export const YhandledeleteBlock = (id: string , ydoc: Y.Doc ) => {
         console.log('blocksArraybefore:');
         const blocksArray = getblocksArray(ydoc);
         const blocksData = getblocksData(ydoc);
+        const blocksContent = getblocksContent(ydoc);
         blocksArray.forEach((blockMap, indexArray) => {
         if (blockMap === id) {
             ydoc.transact(()=>{
                 blocksData.delete(blockMap);
                 blocksArray.delete(indexArray, 1);
+                blocksContent.delete(blockMap);
             })
         }
     });

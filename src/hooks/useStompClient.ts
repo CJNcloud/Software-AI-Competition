@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Client, IMessage } from '@stomp/stompjs'
-
 export const useStompClient = (url: string) => {
   const [client, setClient] = useState<Client | null>(null)
   const [connected, setConnected] = useState(false)
-
   useEffect(() => {
     const stompClient = new Client({
       brokerURL: url,

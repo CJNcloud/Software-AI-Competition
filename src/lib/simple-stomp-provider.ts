@@ -9,7 +9,6 @@ export class SimpleStompProvider {
     private stompClient: Client;
     private eventHandlers: Map<string, EventCallback[]>;
     private synced: boolean = false;
-
     constructor(serverUrl: string, pageId: string, doc: Y.Doc) {
         this.pageId = pageId;
         this.doc = doc;
@@ -17,7 +16,7 @@ export class SimpleStompProvider {
 
         this.stompClient = new Client({
             brokerURL: serverUrl,
-            reconnectDelay: 5000,
+            reconnectDelay: 10000,
             heartbeatIncoming: 4000,
             heartbeatOutgoing: 4000
         });
