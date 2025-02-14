@@ -40,18 +40,31 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ blockId, onTog
     // 定义一个名为applyStyle的函数，用于应用样式
     const applyStyle = (className: string) => {
         const selection = window.getSelection()
+        const blockElement = document.getElementById(blockId)!; // 获取当前选中的块元素
         if (!selection || selection.rangeCount === 0) return
         const range = selection.getRangeAt(0)
-        const selectedText = range.toString()
         const blocksContent = Ydoc.getMap<Y.Text>('blocksContent');
-        const index = blocksContent.get(blockId)!.toString().indexOf(selectedText);
-        console.log('index', index)
-        blocksContent.get(blockId)!.format(index, index + selectedText.length, {
+        const startOffset = getTextOffset(blockElement, range.startContainer, range.startOffset);
+        const endOffset = startOffset + range.toString().length;
+        blocksContent.get(blockId)!.format(startOffset, endOffset, {
             [className]: true  // 添加样式
         });
         console.log('blocksContent', blocksContent.get(blockId)!.toDelta())
     }
-
+    const getTextOffset = (container: Node, targetNode: Node, targetOffset: number): number => {
+        let offset = 0;
+        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+        
+        while (walker.nextNode()) {
+            const node = walker.currentNode;
+            if (node === targetNode) {
+                return offset + targetOffset;
+            }
+            offset += node.textContent!.length;
+        }
+        
+        return -1; // 未找到时返回
+    };
     // 定义一个名为handleInlineStyle的函数，用于处理内联样式
     const handleInlineStyle = (style: string) => {
         switch (style) {

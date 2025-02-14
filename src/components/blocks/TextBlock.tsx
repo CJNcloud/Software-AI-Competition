@@ -54,18 +54,32 @@ export const TextBlock: React.FC<TextBlockProps> = ({
         if (!lastSelectionRef.current || !divRef.current) return;
         const selection = window.getSelection();
         if (!selection) return;
-        const range = document.createRange();
-        const textNode = divRef.current.firstChild || divRef.current;
-        
-        try {
-            range.setStart(textNode, lastSelectionRef.current.offset);
-            range.setEnd(textNode, lastSelectionRef.current.offset);
-            selection.removeAllRanges();
-            selection.addRange(range);
-        } catch (e) {
-            console.warn('Failed to restore selection:', e);
+    
+        const textNodes = getTextNodes(divRef.current);
+        let remainingOffset = lastSelectionRef.current.offset;
+    
+        for (const node of textNodes) {
+            if (remainingOffset <= node.length) {
+                const range = document.createRange();
+                range.setStart(node, remainingOffset);
+                range.setEnd(node, remainingOffset);
+                selection.removeAllRanges();
+                selection.addRange(range);
+                break;
+            }
+            remainingOffset -= node.length;
         }
     }, []);
+    
+    const getTextNodes = (element: HTMLElement): Text[] => {
+        const textNodes: Text[] = [];
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
+        let node;
+        while ((node = walker.nextNode())) {
+            textNodes.push(node as Text);
+        }
+        return textNodes;
+    };
     useEffect(() => {
         const div = divRef.current;
         if (!div) return;
@@ -96,6 +110,23 @@ export const TextBlock: React.FC<TextBlockProps> = ({
         }
     }, [content, restoreSelection]);
     useEffect(() => {
+        const div = divRef.current;
+        if (!div) return;
+      
+        // 添加 mutation observer 监听 DOM 变化
+        const observer = new MutationObserver(() => {
+          requestAnimationFrame(restoreSelection);
+        });
+      
+        observer.observe(div, {
+          subtree: true,
+          childList: true,
+          characterData: true
+        });
+      
+        return () => observer.disconnect();
+      }, [restoreSelection]);
+    useEffect(() => {
         // console.log(JSON.stringify(style));
         console.log('style',style);
     },[style])
@@ -125,67 +156,32 @@ export const TextBlock: React.FC<TextBlockProps> = ({
         const content = e.currentTarget.textContent!;
         onChange(id, content);
     };
-
     // 添加一个处理键盘事件的函数
     const handleKeyDownInternal = (e: React.KeyboardEvent<HTMLDivElement>) => {
         // 如果内容为空且按下了退格键
-        if (e.key === 'Backspace' && divRef.current) {
-            const content = divRef.current.innerHTML;
-            if (content === '<br>' || content === '&nbsp;' || content === '') {
-                e.preventDefault();
-                divRef.current.innerHTML = '';
-                onKeyDown(e, id);
-            } else {
-                // 检查是否正在删除 "/"
-                const selection = window.getSelection();
-                if (selection && selection.rangeCount > 0) {
-                    const range = selection.getRangeAt(0);
-                    const start = range.startOffset;
-                    if (start === 1 && content.startsWith('/')) {
-                        // 如果正在删除 "/"，触发关闭菜单的事件
-                        const customEvent = new KeyboardEvent('keydown', {
-                            key: 'Escape',
-                            bubbles: true
-                        });
-                        e.currentTarget.dispatchEvent(customEvent);
-                    }
-                }
-            }
-        }
         onKeyDown(e, id);
     };
-    const renderStyledContent = () => {
-        if (!style || !content) return content;
-    
+    const getStyledContent = () => {
+        if (!content) return { __html: '' }; // 空内容处理
+      
         let currentPosition = 0;
-        return style.map((segment, index) => {
-            const text = content.substr(currentPosition, segment.length);
-            currentPosition += segment.length;
-            
-            // 检查是否有样式属性
-            const hasAttributes = segment.attributes && 
-                                Object.keys(segment.attributes).length > 0;
-    
-            // 如果没有样式属性，直接返回文本
-            if (!hasAttributes) {
-                return text;
-            }
-    
-            // 如果有样式属性，用span包裹并添加相应的样式
-            return (
-                <span 
-                    key={index}
-                    className={cn({
-                        'font-bold': segment.attributes.bold,
-                        'italic': segment.attributes.italic,
-                        // 添加其他样式映射
-                    })}
-                >
-                    {text}
-                </span>
-            );
+        let html = '';
+      
+        style?.forEach((segment) => {
+          const text = content.slice(currentPosition, segment.length);
+          currentPosition += segment.length;
+      
+          const styles = [];
+          if (segment.attributes?.bold) styles.push('font-bold');
+          if (segment.attributes?.italic) styles.push('italic');
+          
+          html += styles.length > 0 
+            ? `<span class="${styles.join(' ')}">${text}</span>` 
+            : text;
         });
-    };
+      
+        return { __html: html }; // 始终返回包含 __html 的对象
+      };
     return (
         <div
             ref={ref}
@@ -233,8 +229,10 @@ export const TextBlock: React.FC<TextBlockProps> = ({
                     onFocus={() => onFocus(id)}
                     onBlur={() => onBlur(id)}
                     onKeyDown={handleKeyDownInternal}
+                    dangerouslySetInnerHTML={getStyledContent()}
+                    id={id}
                 >
-                    {renderStyledContent()}
+                    
                 </div>
 
                 <button

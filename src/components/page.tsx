@@ -41,104 +41,73 @@ export function Editor({ pageId }: EditorProps) {
     const userId = useRef(uuidv4()); // 为每个用户生成唯一ID
     const [selectedBlocks, setSelectedBlocks] = useState<Set<string>>(new Set());
     const blocksRef = useRef(blocks);
+    const syncBlocks = useCallback(() => {
+        const blocksArray = ydoc.getArray<string>('blocksArray');
+        const blocksData: Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
+        const newBlocks: BlockData[] = [];
+                    blocksArray.forEach((blockId) => {
+                        const blockData = blocksData.get(blockId);
+                        // console.log(blockData!.get('content')!);
+                        if (blockData) {
+                            newBlocks.push({
+                                id: blockData.get('id')!,
+                                type: blockData.get('type')!,
+                                content: blockData.get('content')!,
+                            });
+                        }
+                    });
+                    setBlocks(newBlocks);
+    },[ydoc]);
     useEffect(() => {
         blocksRef.current = blocks;
     }, [blocks]);
     useEffect(() => {
-        // const provider = new SimpleStompProvider(
-        //     'ws://forfries.com:8887/ws',
-        //     pageId,
-        //     ydoc
-        // );
-        setIsLoading(true);
+        const wsProvider = new WebsocketProvider('ws://localhost:1234', pageId, ydoc)
         const blocksArray = ydoc.getArray<string>('blocksArray');
         const blocksData: Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
+        wsProvider.on('status', event => {
+                console.log(event.status) // logs "connected" or "disconnected"
+                blocksContent.observe(() =>{
+                    const style: BlocksStyle[] = [];
+                    blocksContent.forEach((blockcontent,blockid) => {
+                        // console.log('change',blockid, 'blockcontent',blockcontent.toDelta());
+                        const ts = blockcontent.toDelta()!.map((item: { insert: string, attributes?: { style?: string[] } }) => {
+                            const attributes = item.attributes || {};
+                            return {
+                              length: item.insert.length,
+                              attributes: attributes
+                            };
+                          });
+                        // console.log('ts',ts);
+                        const tempstyle : { id: string, style: { length: number, attributes: { [key: string]: string[] } }[] }= { id: blockid, style: ts }
+                        // console.log('tempstyle', tempstyle);
+                        style.push(tempstyle);
+                    });
+                    setBlockstyle(style);
+                })
+                // 设置观察者来监听变化
+                blocksArray.observe(() => {
+                    syncBlocks();
+                });
+                console.log('同步完成,当前blocks:', blocksArray.toArray());
+                const tempid=uuidv4();
+                addBlock('paragraph','',tempid);
+                deleteBlock(tempid);
+                syncBlocks();
+                setIsLoading(true);
+                
+        })
         const blocksContent :Y.Map<Y.Text>= ydoc.getMap<Y.Text>('blocksContent');
         let initialized = false;
-        // provider.on('sync', (isSynced: boolean) => {
-        //     if (isSynced && !initialized) {
-        //         initialized = true;
-        //         console.log('同步完成,当前blocks数量:', blocksArray.length);
-        //         blocksContent.observe(() =>{
-        //             const style: BlocksStyle[] = [];
-        //             blocksContent.forEach((blockcontent,blockid) => {
-        //                 // console.log('change',blockid, 'blockcontent',blockcontent.toDelta());
-        //                 const ts = blockcontent.toDelta()!.map((item: { insert: string, attributes?: { style?: string[] } }) => {
-        //                     const attributes = item.attributes || {};
-        //                     return {
-        //                       length: item.insert.length,
-        //                       attributes: attributes
-        //                     };
-        //                   });
-        //                 // console.log('ts',ts);
-        //                 const tempstyle : { id: string, style: { length: number, attributes: { [key: string]: string[] } }[] }= { id: blockid, style: ts }
-        //                 console.log('tempstyle', tempstyle);
-        //                 style.push(tempstyle);
-        //             });
-        //             setBlockstyle(style);
-        //         })
-        //         // 设置观察者来监听变化
-        //         blocksArray.observe(() => {
-        //             // console.log('blocksArray changed:');
-        //             const newBlocks: BlockData[] = [];
-        //             blocksArray.forEach((blockId) => {
-        //                 const blockData = blocksData.get(blockId);
-        //                 // console.log(blockData!.get('content')!);
-        //                 if (blockData) {
-        //                     newBlocks.push({
-        //                         id: blockData.get('id')!,
-        //                         type: blockData.get('type')!,
-        //                         content: blockData.get('content')!,
-        //                     });
-        //                 }
-        //             });
-        //             // console.log(newBlocks);
-        //             setBlocks(newBlocks);
-        //         });
-        //         setIsLoading(false);
-        //     }
-        initialized = true;
-            console.log('同步完成,当前blocks数量:', blocksArray.length);
-            blocksContent.observe(() =>{
-                const style: BlocksStyle[] = [];
-                blocksContent.forEach((blockcontent,blockid) => {
-                    // console.log('change',blockid, 'blockcontent',blockcontent.toDelta());
-                    const ts = blockcontent.toDelta()!.map((item: { insert: string, attributes?: { style?: string[] } }) => {
-                        const attributes = item.attributes || {};
-                        return {
-                          length: item.insert.length,
-                          attributes: attributes
-                        };
-                      });
-                    // console.log('ts',ts);
-                    const tempstyle : { id: string, style: { length: number, attributes: { [key: string]: string[] } }[] }= { id: blockid, style: ts }
-                    console.log('tempstyle', tempstyle);
-                    style.push(tempstyle);
-                });
-                setBlockstyle(style);
-            })
-            // 设置观察者来监听变化
-            blocksArray.observe(() => {
-                // console.log('blocksArray changed:');
-                const newBlocks: BlockData[] = [];
-                blocksArray.forEach((blockId) => {
-                    const blockData = blocksData.get(blockId);
-                    // console.log(blockData!.get('content')!);
-                    if (blockData) {
-                        newBlocks.push({
-                            id: blockData.get('id')!,
-                            type: blockData.get('type')!,
-                            content: blockData.get('content')!,
-                        });
-                    }
-                });
-                // console.log(newBlocks);
-                setBlocks(newBlocks);
-            });
-            setIsLoading(false);
+        wsProvider.on('sync', (isSynced: boolean) => {
+            if (isSynced && !initialized) {
+                initialized = true;
+                setIsLoading(false);
+            }
+        });
         return () => {
-            // provider.destroy();
-            ydoc.destroy();
+            // wsProvider.disconnect();
+            // ydoc.destroy();
         };
     }, [pageId]);
     const handleBlockChange = useCallback((id: string, content: string='') => { 
@@ -213,9 +182,7 @@ export function Editor({ pageId }: EditorProps) {
                 blocksData.set(id, newBlockMap);
                 blocksArray.insert(targetIndex + 1, [id]);
                 // 在创建新块后立即设置焦点
-                setTimeout(() => {
-                    setSelectedBlockId(id);
-                }, 0);
+                setSelectedBlockId(id);
             } else {
                 console.log("Block with id " + blockId + " not found.");
             }
@@ -228,7 +195,6 @@ export function Editor({ pageId }: EditorProps) {
     if (slashMenuBlockId) {
         const blocksArray = ydoc.getArray<string>('blocksArray');
         const blocksData:Y.Map<Y.Map<string>>=ydoc.getMap<Y.Map<string>>('blocksData');
-        
         // 将所有操作包装在一个事务中
         ydoc.transact(() => {
             blocksArray.forEach((blockMap,index) => {
@@ -273,7 +239,6 @@ export function Editor({ pageId }: EditorProps) {
         // 首先添加一个加载提示的 block
         const loadingBlockId = uuidv4();
         addBlock(type, "正在生成中，请稍后...",loadingBlockId);
-        
         try {
             const response = await AIsummary(blocks);
             // 获取到响应后，删除加载提示并添加新内容

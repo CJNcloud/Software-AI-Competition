@@ -123,13 +123,11 @@ export const YhandledeleteBlock = (id: string , ydoc: Y.Doc ) => {
         console.log('blocksArraybefore:');
         const blocksArray = getblocksArray(ydoc);
         const blocksData = getblocksData(ydoc);
-        const blocksContent = getblocksContent(ydoc);
         blocksArray.forEach((blockMap, indexArray) => {
         if (blockMap === id) {
             ydoc.transact(()=>{
                 blocksData.delete(blockMap);
                 blocksArray.delete(indexArray, 1);
-                blocksContent.delete(blockMap);
             })
         }
     });
@@ -151,52 +149,99 @@ export const YhandletoggleBlockType = (id: string, newType: string, ydoc:Y.Doc= 
         });
         return ydoc;
 }
-export const YhandletoggleStyle = (blockId: string,style: string,ydoc:Y.Doc= new Y.Doc()) => {
-     ydoc.transact(() => {
-                const selection = window.getSelection()
-                if (!selection || selection.rangeCount === 0) return
-                const range = selection.getRangeAt(0)
-                const selectedText = range.toString()
-                const blocksContent = ydoc.getMap<Y.Text>('blocksContent');
-                let index = blocksContent.get(blockId)!.toString().indexOf(selectedText);
-                const endindex = blocksContent.get(blockId)!.toString().indexOf(selectedText)+selectedText.length-1;
-                const delta = blocksContent.get(blockId)!.toDelta();
-                console.log('delta', delta)
-                console.log('index', index)
-                let currentIndex = 0;
-                let hasStyle = false;
-                for (const op of delta) {
-                    const length = op.insert.length;
-                    // 检查当前片段是否包含选中文本
-                    if (currentIndex <= index && index < currentIndex + length && index<= endindex) {
-                        // 检查是否有对应的样式
-                        // console.log('op.attributes', op.attributes)
-                        // console.log('selectedText.length',selectedText.length )
-                        hasStyle = Boolean(op.attributes?.[style]);
-                        console.log(index+selectedText.length -1,'endindex',endindex)
-                        const styleLength = index+selectedText.length  <= currentIndex + op.insert.length  ? 
-                        selectedText.length : currentIndex + op.insert.length - index ;
-                        console.log('styleLength', styleLength)
-                        if (hasStyle) {
-                            blocksContent.get(blockId)!.format(index, styleLength , {
-                                [style]: null  // 移除样式
-                            });
-                        } else {
-                            blocksContent.get(blockId)!.format(index, styleLength , {
-                                [style]: true  // 添加样式
-                            });
-                        }
-                        console.log('blocksContent', blocksContent.get(blockId)!.toDelta())
-                        index = currentIndex + length ;
-                        const tempid= uuidv4();
-                        blocksContent.set(tempid,new Y.Text(''));
-                        blocksContent.delete(tempid);
-                    }
-                    // 根据是否有样式决定添加还是移除
-                    currentIndex += length; // 更新当前索引
-                    console.log('currentIndex', currentIndex,'index',index)
-                }
-            }
-        )
-        return ydoc
-    };
+export const YhandletoggleStyle = (
+    blockId: string,
+    style: string,
+    ydoc: Y.Doc = new Y.Doc()
+  ) => {
+    ydoc.transact(() => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return;
+  
+      const range = selection.getRangeAt(0);
+      const blockElement = document.getElementById(blockId);
+      if (!blockElement) 
+        {
+            console.log('blockElement:');
+            return;
+        }
+  
+      // 计算绝对偏移量
+      const startOffset = calculateOffset(blockElement, range.startContainer, range.startOffset);
+      const endOffset = calculateOffset(blockElement, range.endContainer, range.endOffset);
+      console.log('startOffset:',startOffset,'endOffset:',endOffset);
+      if (startOffset === -1 || endOffset === -1) return;
+  
+      const blocksContent = ydoc.getMap<Y.Text>('blocksContent');
+      const text = blocksContent.get(blockId);
+      if (!text) return;
+  
+      // 判断是否需要移除样式
+      const shouldRemove = checkStyleExistence(text, startOffset, endOffset, style);
+      console.log('shouldRemove:',shouldRemove);
+      // 执行样式切换
+      text.format(startOffset, endOffset - startOffset, {
+        [style]: shouldRemove ? null : true
+      });
+      const tempid= uuidv4();
+       blocksContent.set(tempid,new Y.Text(''));
+      blocksContent.delete(tempid);
+    });
+    return ydoc;
+  };
+  
+  // 计算基于 DOM 的绝对偏移量
+  const calculateOffset = (
+    container: HTMLElement,
+    targetNode: Node,
+    targetOffset: number
+  ): number => {
+    let offset = 0;
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+    
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (node === targetNode) {
+        return offset + targetOffset;
+      }
+      offset += node.textContent!.length;
+    }
+    return -1;
+  };
+  
+  // 检查指定范围内是否全部存在目标样式
+  const checkStyleExistence = (
+    text: Y.Text,
+    start: number,
+    end: number,
+    style: string
+  ): boolean => {
+    let currentPos = 0;
+    const delta = text.toDelta();
+  
+    for (const op of delta) {
+      const opLength = op.insert.length;
+      const opEnd = currentPos + opLength;
+  
+      // 跳过未重叠的操作
+      if (opEnd <= start) {
+        currentPos = opEnd;
+        continue;
+      }
+  
+      // 提前终止遍历
+      if (currentPos >= end) break;
+  
+      // 计算重叠区域
+      const overlapStart = Math.max(start, currentPos);
+      const overlapEnd = Math.min(end, opEnd);
+      
+      // 检测样式状态
+      if (op.attributes?.[style] !== true) {
+        return false;
+      }
+  
+      currentPos = opEnd;
+    }
+    return true;
+  };
