@@ -1,4 +1,5 @@
 import * as Y from 'yjs';
+import ReactQuill from 'react-quill';
 export interface BlockProps {
     id: string
     type: string

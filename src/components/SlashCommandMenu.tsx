@@ -11,16 +11,13 @@ interface SlashCommandMenuProps {
 
 const commands = [
     { type: 'paragraph', icon: Text, label: 'Text' },
-    { type: 'heading-1', icon: Heading1, label: 'Heading 1' },
-    { type: 'heading-2', icon: Heading2, label: 'Heading 2' },
-    { type: 'heading-3', icon: Heading3, label: 'Heading 3' },
     { type: 'image', icon: ImageIcon, label: 'Image' },
 ]
 
 export const SlashCommandMenu: React.FC<SlashCommandMenuProps> = ({ position, onSelect, onClose }) => {
     return (
         <div
-            className="fixed z-20 bg-white shadow-lg rounded-lg p-2 w-64"
+            className="fixed z-20 bg-white dark:bg-black shadow-lg rounded-lg p-2 w-64"
             style={{
                 top: `${position.y}px`,
                 left: `${position.x}px`,
@@ -29,7 +26,7 @@ export const SlashCommandMenu: React.FC<SlashCommandMenuProps> = ({ position, on
             {commands.map((command) => (
                 <button
                     key={command.type}
-                    className="flex items-center gap-2 w-full p-2 hover:bg-gray-100 rounded text-left"
+                    className="flex items-center gap-2 w-full p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-left"
                     onClick={() => {
                         onSelect(command.type)
                         onClose()

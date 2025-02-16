@@ -9,13 +9,8 @@ const getblocksData = (ydoc: Y.Doc) => {
     const blocksData:Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
     return blocksData;
 }
-const getblocksContent = (ydoc: Y.Doc) => {
-    const blocksContent = ydoc.getMap<Y.Text>('blocksContent');
-    return blocksContent;
-}
 export const YhandleAddBlock = (type: string,content: string='',id : string  =uuidv4(),ydoc: Y.Doc) => {
     // 获取ydoc中的blocksArray和blocksDatac
-    const blocksContent = getblocksContent(ydoc);
     const blocksArray = getblocksArray(ydoc);
     const blocksData = getblocksData(ydoc);
     // 创建一个新的块，并设置其id、content和type
@@ -28,7 +23,6 @@ export const YhandleAddBlock = (type: string,content: string='',id : string  =uu
     // 将新的块的id添加到blocksArray中
     blocksArray.push([id]);
     // console.log('blocksArrayafter:',blocksArray.length);
-    blocksContent.set(id, new Y.Text());
     return ydoc;
 }
 export const YhandlemoveBlock = (dragIndex: number, 
@@ -79,32 +73,11 @@ export const YhandleBlockChange = (id: string, content: string,ydoc:Y.Doc) => {
         // 将所有操作包装在一个事务中
         ydoc.transact(() => {
             // console.log('nowcontent',content)
-            const blocksContent = getblocksContent(ydoc);
             // 获取blocksArray数组
             const blocksArray = getblocksArray(ydoc);
             // 获取blocksData映射
             const blocksData = getblocksData(ydoc);
-            const oldContent = blocksData.get(id)!.get('content')!;
-            const newContent = content;
-            const diffContent = Diff.diffChars(oldContent, newContent);
-            let label=-1;
-            diffContent.forEach((part) => {
-                label+=part.count!;
-                if (part.added) {
-                    // console.log('part.added:',part.added);
-                    blocksContent.get(id)!.insert(label,part.value);
-                }
-                else if (part.removed) {
-                    // console.log('part.removed:',part.removed);
-                    blocksContent.get(id)!.delete(label,part.count!);
-                    label-=part.count!;
-                }
-            })
-            const tempid= uuidv4();
-            blocksContent.set(tempid,new Y.Text(''));
-            blocksContent.delete(tempid);
             //让blocksContent观察者起作用一下
-            // console.log('blocksContent:',blocksContent.get(id)!.toDelta());
             // 遍历blocksArray数组
             blocksArray.forEach((blockMap,index) => {
                 // 如果blocksData映射中id与传入的id相等
@@ -149,99 +122,5 @@ export const YhandletoggleBlockType = (id: string, newType: string, ydoc:Y.Doc= 
         });
         return ydoc;
 }
-export const YhandletoggleStyle = (
-    blockId: string,
-    style: string,
-    ydoc: Y.Doc = new Y.Doc()
-  ) => {
-    ydoc.transact(() => {
-      const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0) return;
   
-      const range = selection.getRangeAt(0);
-      const blockElement = document.getElementById(blockId);
-      if (!blockElement) 
-        {
-            console.log('blockElement:');
-            return;
-        }
-  
-      // 计算绝对偏移量
-      const startOffset = calculateOffset(blockElement, range.startContainer, range.startOffset);
-      const endOffset = calculateOffset(blockElement, range.endContainer, range.endOffset);
-      console.log('startOffset:',startOffset,'endOffset:',endOffset);
-      if (startOffset === -1 || endOffset === -1) return;
-  
-      const blocksContent = ydoc.getMap<Y.Text>('blocksContent');
-      const text = blocksContent.get(blockId);
-      if (!text) return;
-  
-      // 判断是否需要移除样式
-      const shouldRemove = checkStyleExistence(text, startOffset, endOffset, style);
-      console.log('shouldRemove:',shouldRemove);
-      // 执行样式切换
-      text.format(startOffset, endOffset - startOffset, {
-        [style]: shouldRemove ? null : true
-      });
-      const tempid= uuidv4();
-       blocksContent.set(tempid,new Y.Text(''));
-      blocksContent.delete(tempid);
-    });
-    return ydoc;
-  };
-  
-  // 计算基于 DOM 的绝对偏移量
-  const calculateOffset = (
-    container: HTMLElement,
-    targetNode: Node,
-    targetOffset: number
-  ): number => {
-    let offset = 0;
-    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
-    
-    while (walker.nextNode()) {
-      const node = walker.currentNode;
-      if (node === targetNode) {
-        return offset + targetOffset;
-      }
-      offset += node.textContent!.length;
-    }
-    return -1;
-  };
-  
-  // 检查指定范围内是否全部存在目标样式
-  const checkStyleExistence = (
-    text: Y.Text,
-    start: number,
-    end: number,
-    style: string
-  ): boolean => {
-    let currentPos = 0;
-    const delta = text.toDelta();
-  
-    for (const op of delta) {
-      const opLength = op.insert.length;
-      const opEnd = currentPos + opLength;
-  
-      // 跳过未重叠的操作
-      if (opEnd <= start) {
-        currentPos = opEnd;
-        continue;
-      }
-  
-      // 提前终止遍历
-      if (currentPos >= end) break;
-  
-      // 计算重叠区域
-      const overlapStart = Math.max(start, currentPos);
-      const overlapEnd = Math.min(end, opEnd);
-      
-      // 检测样式状态
-      if (op.attributes?.[style] !== true) {
-        return false;
-      }
-  
-      currentPos = opEnd;
-    }
-    return true;
-  };
+  // 计算基于 DOM 的绝对偏移

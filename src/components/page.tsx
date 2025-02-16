@@ -1,9 +1,6 @@
 import React, { useState, useCallback, useEffect,useRef} from 'react'
 import { TextBlock } from './blocks/TextBlock'
-import { FloatingToolbar } from './toolbar'
 import { SlashCommandMenu } from './SlashCommandMenu'
-import { DndProvider } from 'react-dnd'
-import { HTML5Backend } from 'react-dnd-html5-backend'
 import { v4 as uuidv4 } from 'uuid'
 import { Button } from "@/components/ui/button"
 import { Plus } from 'lucide-react'
@@ -12,6 +9,7 @@ import { WebsocketProvider } from 'y-websocket';
 import { ImageBlock } from './blocks/ImageBlock'
 import { AIPicture, AIsummary } from './AI'
 import { handleaddBlock, BlockChange, handledeleteBlock, handletoggleBlockType, handlemoveBlock,BlockSelect} from '@/controller/BlockConroller'
+import ReactQuill from 'react-quill'
 interface BlockData {
     id: string;
     type: string;
@@ -26,6 +24,7 @@ interface EditorProps {
 }
 
 export function Editor({ pageId }: EditorProps) {
+    const quillRefs = useRef<{ [key: string]: ReactQuill | null }>({});
     const [blocks, setBlocks] = useState<BlockData[]>([]);
     const [blockstyle,setBlockstyle] = useState<BlocksStyle[]>([])
     const [ydoc, setYdoc] = useState(() => {
@@ -36,7 +35,6 @@ export function Editor({ pageId }: EditorProps) {
     const [showSlashMenu, setShowSlashMenu] = useState<boolean>(false);
     const [slashMenuBlockId, setSlashMenuBlockId] = useState<string | null>(null);
     const [slashMenuPosition, setSlashMenuPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-    // const [provider, setProvider] = useState<SimpleStompProvider | null>(null);
     const [awareness, setAwareness] = useState<any>(null);
     const userId = useRef(uuidv4()); // 为每个用户生成唯一ID
     const [selectedBlocks, setSelectedBlocks] = useState<Set<string>>(new Set());
@@ -64,40 +62,16 @@ export function Editor({ pageId }: EditorProps) {
     useEffect(() => {
         const wsProvider = new WebsocketProvider('ws://localhost:1234', pageId, ydoc)
         const blocksArray = ydoc.getArray<string>('blocksArray');
-        const blocksData: Y.Map<Y.Map<string>> = ydoc.getMap<Y.Map<string>>('blocksData');
         wsProvider.on('status', event => {
                 console.log(event.status) // logs "connected" or "disconnected"
-                blocksContent.observe(() =>{
-                    const style: BlocksStyle[] = [];
-                    blocksContent.forEach((blockcontent,blockid) => {
-                        // console.log('change',blockid, 'blockcontent',blockcontent.toDelta());
-                        const ts = blockcontent.toDelta()!.map((item: { insert: string, attributes?: { style?: string[] } }) => {
-                            const attributes = item.attributes || {};
-                            return {
-                              length: item.insert.length,
-                              attributes: attributes
-                            };
-                          });
-                        // console.log('ts',ts);
-                        const tempstyle : { id: string, style: { length: number, attributes: { [key: string]: string[] } }[] }= { id: blockid, style: ts }
-                        // console.log('tempstyle', tempstyle);
-                        style.push(tempstyle);
-                    });
-                    setBlockstyle(style);
-                })
+                console.log('同步完成,当前blocks:', blocksArray.toArray());
+                syncBlocks()
                 // 设置观察者来监听变化
                 blocksArray.observe(() => {
                     syncBlocks();
                 });
-                console.log('同步完成,当前blocks:', blocksArray.toArray());
-                const tempid=uuidv4();
-                addBlock('paragraph','',tempid);
-                deleteBlock(tempid);
-                syncBlocks();
                 setIsLoading(true);
-                
         })
-        const blocksContent :Y.Map<Y.Text>= ydoc.getMap<Y.Text>('blocksContent');
         let initialized = false;
         wsProvider.on('sync', (isSynced: boolean) => {
             if (isSynced && !initialized) {
@@ -106,13 +80,12 @@ export function Editor({ pageId }: EditorProps) {
             }
         });
         return () => {
-            // wsProvider.disconnect();
-            // ydoc.destroy();
+            wsProvider.disconnect();
+            ydoc.destroy();
         };
     }, [pageId]);
     const handleBlockChange = useCallback((id: string, content: string='') => { 
         // 将所有操作包装在一个事务中
-        console.log(id,'+',content)
         BlockChange(id, content, ydoc);
     }, []);
     const handleBlockFocus = useCallback((id: string) => {
@@ -139,18 +112,19 @@ export function Editor({ pageId }: EditorProps) {
         }, 0);
     }, []);
     const handleKeyDown = useCallback((e: React.KeyboardEvent, blockId: string) => {
+        console.log((e.target as HTMLElement).innerHTML)
         if (e.key === '/') {
             // 获取当前块的内容
             const blocksArray = ydoc.getArray<string>('blocksArray');
             const blocksData = ydoc.getMap<Y.Map<string>>('blocksData');
             let currentBlockContent = '';
-            
+            console.log('输入的',blockId)
             blocksArray.forEach((blockMap) => {
+                console.log(blocksData.get(blockMap)?.get('id'))
                 if (blocksData.get(blockMap)?.get('id') === blockId) {
                     currentBlockContent = blocksData.get(blockMap)?.get('content') || '';
                 }
             });
-
             // 只有当块为空时才显示斜杠菜单
             if (!currentBlockContent.trim()) {
                 const rect = (e.target as HTMLElement).getBoundingClientRect();
@@ -170,23 +144,23 @@ export function Editor({ pageId }: EditorProps) {
             newBlockMap.set('id',id) ;
             newBlockMap.set('content', '');
             newBlockMap.set('type', 'paragraph');
-            
             let targetIndex = -1;
             blocksArray.forEach((blockMap, index) => {
                 if (blockMap === blockId) {
                     targetIndex = index;
                 }
             });
-
             if (targetIndex !== -1) {
                 blocksData.set(id, newBlockMap);
                 blocksArray.insert(targetIndex + 1, [id]);
                 // 在创建新块后立即设置焦点
-                setSelectedBlockId(id);
+                setTimeout(() => {
+                    setSelectedBlockId(id);
+                }, 0);
             } else {
                 console.log("Block with id " + blockId + " not found.");
             }
-        } else if (e.key === 'Backspace' && (e.target as HTMLElement).textContent === '') {
+        } else if (e.key === 'Backspace' && (e.target as HTMLElement).innerHTML === '<p><br></p>') {
             e.preventDefault();
             deleteBlock(blockId);
         }
@@ -210,9 +184,7 @@ export function Editor({ pageId }: EditorProps) {
             });
         });
         // 设置焦点（这个操作不需要包含在事务中，因为它只影响本地UI）
-        setTimeout(() => {
-            setSelectedBlockId(slashMenuBlockId);
-        }, 0);
+        setSelectedBlockId(slashMenuBlockId);
     } else {
         addBlock(type);
     }
@@ -227,9 +199,6 @@ export function Editor({ pageId }: EditorProps) {
     }, [selectedBlocks]);
     const deleteBlock = useCallback((id: string) => {
         setYdoc(handledeleteBlock(id, ydoc));
-    }, [ydoc]);
-    const toggleBlockType = useCallback((id: string, newType: string) => {
-        setYdoc(handletoggleBlockType(id, newType,ydoc));
     }, [ydoc]);
     // 处理单击选择
     const handleBlockSelect = useCallback((blockId: string, e: MouseEvent) => {
@@ -273,8 +242,7 @@ export function Editor({ pageId }: EditorProps) {
     return blockStyle?.style || [];
     }, [blockstyle]);
     return (
-        <DndProvider backend={HTML5Backend} options={{ enableMouseEvents: true }}>
-            <div className="w-full max-w-4xl mx-auto p-4 bg-white min-h-screen relative">
+            <div className="w-full max-w-4xl mx-auto p-4 bg-white dark:bg-black min-h-screen relative">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-[200px]">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -314,7 +282,6 @@ export function Editor({ pageId }: EditorProps) {
                                         isSelected = {selectedBlocks.has(block.id)}
                                         onSelect = {handleBlockSelect}
                                         placeholder = {index === 0 ? "输入标题..." : "按下 / 开始创作"}
-                                        style = {getBlockStyle(block.id)!}
                                     />
                                 )
                             ))}
@@ -347,13 +314,6 @@ export function Editor({ pageId }: EditorProps) {
                             <Plus className="h-4 w-4 mr-2" />
                             AI Picture
                         </Button>
-                        {selectedBlockId && (
-                            <FloatingToolbar
-                                blockId={selectedBlockId}
-                                onToggleType={(type) => toggleBlockType(selectedBlockId, type)}
-                                ydoc={ydoc}
-                            />
-                        )}
                         {showSlashMenu && (
                             <SlashCommandMenu
                                 position={slashMenuPosition}
@@ -367,6 +327,5 @@ export function Editor({ pageId }: EditorProps) {
                     </>
                 )}
             </div>
-        </DndProvider>
     );
 }
